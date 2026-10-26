@@ -1,0 +1,62 @@
+name: busca-bula
+
+services:
+  db:
+    image: pgvector/pgvector:pg17
+    pull_policy: missing
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-busca_bula}
+      POSTGRES_USER: ${POSTGRES_USER:-busca_bula}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-busca_bula}
+    volumes:
+      - db_data:/var/lib/postgresql/data
+      - ./docker/postgres/init.sql:/docker-entrypoint-initdb.d/init.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+
+  backend:
+    image: busca-bula-backend
+    build:
+      context: ./backend
+      labels:
+        busca-bula.deps: ${BACKEND_DEPS_HASH:-}
+    restart: unless-stopped
+    environment:
+      DJANGO_DEBUG: "True"
+      DJANGO_ALLOWED_HOSTS: "*"
+      POSTGRES_HOST: db
+      POSTGRES_PORT: "5432"
+      POSTGRES_DB: ${POSTGRES_DB:-busca_bula}
+      POSTGRES_USER: ${POSTGRES_USER:-busca_bula}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-busca_bula}
+    volumes:
+      - ./backend:/app
+    ports:
+      - "${BACKEND_PORT:-8000}:8000"
+    depends_on:
+      db:
+        condition: service_healthy
+
+  frontend:
+    image: busca-bula-frontend
+    build:
+      context: ./frontend/busca-bula
+      labels:
+        busca-bula.deps: ${FRONTEND_DEPS_HASH:-}
+    restart: unless-stopped
+    environment:
+      VITE_USE_POLLING: "true"
+    volumes:
+      - ./frontend/busca-bula:/app
+      - /app/node_modules
+    ports:
+      - "${FRONTEND_PORT:-5173}:5173"
+    depends_on:
+      - backend
+
+volumes:
+  db_data:

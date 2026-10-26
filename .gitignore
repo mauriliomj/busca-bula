@@ -1,0 +1,18 @@
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+db.sqlite3
+
+# Node
+node_modules/
+dist/
+
+# Variaveis de ambiente
+.env
+
+# Editores e sistema
+.idea/
+.DS_Store
+Thumbs.db
