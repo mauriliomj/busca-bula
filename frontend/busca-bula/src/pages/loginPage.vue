@@ -1,24 +1,12 @@
 <script setup>
-    import logo from '../assets/images/Logo.png'
+    import Header from '../components/header.vue'
     import logo2 from '../assets/images/Logo2.png' 
     import icone from '../assets/images/iconeLogin.png'
-    import { PersonStanding, Mail, LockKeyhole } from 'lucide-vue-next'; 
+    import {Mail, LockKeyhole } from 'lucide-vue-next'; 
 </script>
 
 <template>
-
-    <header>
-
-        <img :src="logo" alt="Logo busca bula" id="logo_buscabula">
-
-        <div class="buttons_header">
-            <button id="acessibility">
-                <PersonStanding :size='30' :stroke-width="1.8" />
-            </button> |
-            <button id="ajuda">Ajuda</button>
-        </div>
-
-    </header>
+    <Header></Header>
 
     <main>
         <div class="login-card">
