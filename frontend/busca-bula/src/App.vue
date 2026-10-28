@@ -1,9 +1,9 @@
 <script setup>
-  import LoginPage from './pages/loginPage.vue';
+  import RegisterPage from './pages/registerPage.vue';
 </script>
 
 <template>
-  <loginPage />
+  <registerPage />
 </template>
 
 <style scoped></style>

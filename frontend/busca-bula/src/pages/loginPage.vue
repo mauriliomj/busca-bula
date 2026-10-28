@@ -1,7 +1,7 @@
 <script setup>
     import Header from '../components/header.vue'
     import logo2 from '../assets/images/Logo2.png' 
-    import icone from '../assets/images/iconeLogin.png'
+    import icone from '../assets/images/icone.png'
     import {Mail, LockKeyhole } from 'lucide-vue-next'; 
 </script>
 
@@ -78,71 +78,6 @@
     background-color: #F1F6F9;
     margin: 0;
 
-}
-
-header {
-    display: flex;
-    width: auto;
-    justify-content: space-between;
-    background-color: white;
-}
-
-#logo_buscabula{
-    width: 230px;
-    margin-left: 70px;
-}
-
-.buttons_header{
-    margin-right: 70px;
-    display: flex;
-    align-items: center;
-    gap: 15px;
-}
-
-#acessibility {
-    width: 40px;
-    height: 40px;
-    padding: 0;
-    border-radius: 50%;
-    border: 2px solid;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-}
-
-#ajuda{
-    border-radius: 30px;
-    font-size: 14px;
-    border: 1.5px solid ;
-}
-
-.login-page {
-  max-width: 400px;
-  margin: 60px auto;
-  padding: 24px;
-  font-family: Arial, sans-serif;
-}
-
-h1 {
-  color: #287a45;
-}
-
-form {
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-}
-
-input,
-button {
-  padding: 12px;
-  font-size: 16px;
-}
-
-button {
-    color: #174563;
-    cursor: pointer;
-    border-color:#174563;
 }
 
 /*MAIN*/

@@ -60,6 +60,7 @@ header {
     font-size: 14px;
     border: 1.5px solid #174563;
     background: white;
+    padding: 10px
 }
 
 button {
