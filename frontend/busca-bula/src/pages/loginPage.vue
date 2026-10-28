@@ -1,7 +1,7 @@
 <script setup>
     import Header from '../components/header.vue'
     import logo2 from '../assets/images/Logo2.png' 
-    import icone from '../assets/images/iconeLogin.png'
+    import icone from '../assets/images/icone.png'
     import {Mail, LockKeyhole } from 'lucide-vue-next'; 
 </script>
 
