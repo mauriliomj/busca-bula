@@ -61,11 +61,3 @@
   border-color: #0DA99F;
 }
 </style>
-
-<script setup>
-import MedicineLeafletPage from './pages/medicine-leaflet-page.vue'
-</script>
-
-<template>
-  <MedicineLeafletPage />
-</template>
