@@ -52,3 +52,20 @@ export function currentUserRole() {
 export function homePathForRole(role) {
   return homePaths[role] ?? '/user'
 }
+
+export function readNextPath() {
+  const next = new URLSearchParams(window.location.search).get('next')
+  return next && next.startsWith('/') && !next.startsWith('//') ? next : null
+}
+
+export function resolvePostLoginPath(role) {
+  const next = readNextPath()
+  return next && role !== PLATFORM_ADMIN_ROLE ? next : homePathForRole(role)
+}
+
+export function requireMemberSession() {
+  if (!isPlatformContext() && isAuthenticated() && currentUserRole() !== PLATFORM_ADMIN_ROLE) return true
+  const currentPath = `${window.location.pathname}${window.location.search}`
+  window.location.href = `/login?next=${encodeURIComponent(currentPath)}`
+  return false
+}

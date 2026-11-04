@@ -60,9 +60,9 @@ const administradorDaOrganizacao = currentUserRole() === ORGANIZATION_ADMIN_ROLE
 const organizacao = useCurrentOrganization()
 
 const menuItems = computed(() => [
-  { label: 'Início', icon: House, href: '#' },
-  { label: 'Buscar', icon: Search, href: '#' },
-  { label: 'Minhas Consultas', icon: FileText, href: '#' },
+  { label: 'Início', icon: House, href: '/medicine-leaflet' },
+  { label: 'Buscar', icon: Search, href: '/search' },
+  { label: 'Minhas Consultas', icon: FileText, href: '/consultations' },
   ...(administradorDaOrganizacao ? [{ label: 'Membros', icon: Users, href: '/members' }] : []),
   { label: 'Meu Perfil', icon: UserRound, href: '/user', active: true },
   { label: 'Sair', icon: LogOut, href: '/login', sair: true }

@@ -4,7 +4,7 @@
     import icone from '../assets/images/icone.png'
     import {Mail, LockKeyhole } from 'lucide-vue-next';
     import { computed, onMounted, ref } from 'vue'
-    import { currentUserRole, homePathForRole, isAuthenticated, loginUser } from '../services/auth-service'
+    import { currentUserRole, isAuthenticated, loginUser, resolvePostLoginPath } from '../services/auth-service'
     import { extractErrorMessage } from '../services/http-client'
     import { loadCurrentOrganization } from '../services/organization-branding'
     import { isPlatformContext } from '../services/organization-context'
@@ -37,7 +37,7 @@
         enviando.value = true
         try {
             const papel = await loginUser(email.value, senha.value)
-            window.location.href = homePathForRole(papel)
+            window.location.href = resolvePostLoginPath(papel)
         } catch (falha) {
             erro.value = extractErrorMessage(falha, 'Não foi possível entrar. Tente novamente.')
         } finally {
@@ -47,7 +47,7 @@
 
     onMounted(() => {
         if (isAuthenticated()) {
-            window.location.href = homePathForRole(currentUserRole())
+            window.location.href = resolvePostLoginPath(currentUserRole())
             return
         }
         if (!areaDaPlataforma) carregarOrganizacao()

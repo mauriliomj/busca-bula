@@ -36,6 +36,7 @@ const cabecalhos = {
 const menuItems = computed(() => [
   { label: 'Membros', icon: Users, href: '#membros', secao: 'membros' },
   { label: 'Identidade visual', icon: Palette, href: '#identidade-visual', secao: 'marca' },
+  { label: 'Buscar medicamentos', icon: Search, href: '/search' },
   { label: 'Meu Perfil', icon: UserRound, href: '/user' },
   { label: 'Sair', icon: LogOut, href: '/login', sair: true }
 ].map((item) => ({ ...item, active: item.secao === secaoAtual.value })))

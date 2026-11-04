@@ -29,10 +29,14 @@ const socials = [
   { label: 'Vídeos', href: '#', icon: 'i-video' }
 ]
 
+function buildSearchUrl(term) {
+  return `/search?q=${encodeURIComponent(term)}`
+}
+
 function search() {
   const term = query.value.trim()
   if (!term) return
-  console.log('Buscar:', term)
+  window.location.href = buildSearchUrl(term)
 }
 
 function useExample(name) {
@@ -148,11 +152,11 @@ function useExample(name) {
         <div class="container">
           <div class="section-head">
             <h2 id="top-title">Medicamentos mais buscados</h2>
-            <a href="#" class="see-all">Ver todos <svg width="16" height="16"><use href="#i-arrow" /></svg></a>
+            <a href="/search" class="see-all">Ver todos <svg width="16" height="16"><use href="#i-arrow" /></svg></a>
           </div>
           <ul class="med-grid">
             <li v-for="med in topMedicines" :key="med">
-              <a class="med" href="#">
+              <a class="med" :href="buildSearchUrl(med)">
                 <span class="med-icon"><svg width="24" height="24"><use href="#i-pill" /></svg></span>
                 <span class="med-info"><strong>{{ med }}</strong><small>(princípio ativo)</small></span>
                 <svg class="chev" width="16" height="16"><use href="#i-chev" /></svg>

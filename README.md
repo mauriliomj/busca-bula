@@ -94,7 +94,7 @@ O banco PostgreSQL fica acessível apenas entre os containers.
 | ------------------------------- | ----------------------------------- | --------------------------------------------------------- |
 | Administrador da plataforma     | `localhost:5173/login`              | `/org`: organizações e identidade visual delas; `/org#catalogo`: catálogo ANVISA |
 | Administrador da organização    | `<subdominio>.localhost:5173/login` | `/members`: membros e identidade visual da organização; `/user`: perfil |
-| Membro                          | `<subdominio>.localhost:5173/login` | `/user`: perfil, alteração de senha e exclusão da conta |
+| Membro                          | `<subdominio>.localhost:5173/login` | `/search` e `/medicine`: busca e detalhes; `/consultations`: histórico; `/user`: perfil |
 
 Uma organização só pode ser excluída depois de desativada. A exclusão apaga o banco e o usuário PostgreSQL dela.
 
@@ -119,6 +119,16 @@ docker compose exec backend python -m app.commands.import_catalog --source price
 
 Os arquivos baixados ficam em cache no volume `catalog_cache`, e o download só se repete quando a ANVISA publica uma versão nova (`If-Modified-Since`). A primeira sincronização baixa cerca de 80 MB.
 
+## Busca de medicamentos
+
+A busca exige login no endereço da organização e aceita nome comercial, princípio ativo, classe terapêutica, número de registro ou o código de barras (EAN) da caixa. Acentos e maiúsculas são ignorados e, quando o termo exato não é encontrado, a busca mostra nomes parecidos (`pg_trgm`). Por padrão só aparecem registros ativos; buscas por registro ou código de barras mostram também os inativos.
+
+O detalhe do medicamento mostra o registro na ANVISA, a situação da bula no Bulário Eletrônico e as apresentações da tabela CMED com o preço máximo ao consumidor. Como a alíquota de ICMS de medicamentos varia por estado, a pessoa escolhe qual alíquota aplicar.
+
+### Histórico de consultas e LGPD
+
+Os medicamentos consultados podem revelar informações de saúde, que a LGPD trata como dado pessoal sensível. Por isso o histórico fica desligado até a pessoa autorizar em **Minhas Consultas**. A data da autorização é registrada, o histórico fica no banco da organização, e desativá-lo, limpar o histórico ou excluir a conta apaga as consultas.
+
 ## Identidade visual
 
 Cada organização pode ter logo (PNG, JPG, WEBP ou SVG, até 512 KB) e duas cores: a principal (botões, links e destaques) e a secundária (títulos). Sem personalização, o app usa as cores padrão do Busca Bula. A logo e as cores ficam no banco da própria organização e são aplicadas automaticamente em todas as páginas abertas pelo subdomínio dela.
@@ -130,7 +140,7 @@ Os navegadores atuais resolvem qualquer `*.localhost` para a própria máquina, 
 | Banco                  | Conteúdo                                         | Acesso                                   |
 | ---------------------- | ------------------------------------------------ | ---------------------------------------- |
 | `busca_bula`           | organizações e administradores da plataforma     | backend                                  |
-| `tenant_<subdominio>`  | usuários e identidade visual da organização      | somente o usuário `tenant_<subdominio>`  |
+| `tenant_<subdominio>`  | usuários, identidade visual e histórico de consultas | somente o usuário `tenant_<subdominio>`  |
 | `busca_bula_catalog`   | medicamentos, bulas e preços (dados públicos)    | `..._writer` grava (ETL); `..._reader` só lê |
 
 - Cada organização tem um banco e um usuário PostgreSQL próprios, criados automaticamente pelo painel. O acesso público ao banco é revogado, então o usuário de uma organização não consegue nem se conectar ao banco de outra.
