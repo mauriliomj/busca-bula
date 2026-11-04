@@ -44,3 +44,33 @@ class InvalidCredentialsError(DomainError):
 class InvalidAccessTokenError(DomainError):
     status_code = 401
     message = "Sessão inválida ou expirada. Entre novamente."
+
+
+class IncorrectPasswordError(DomainError):
+    status_code = 400
+    message = "Senha incorreta."
+
+
+class OrganizationAdminRequiredError(DomainError):
+    status_code = 403
+    message = "Acesso restrito ao administrador da organização."
+
+
+class OrganizationAdminAccountDeletionError(DomainError):
+    status_code = 403
+    message = "O administrador da organização não pode excluir a própria conta."
+
+
+class MemberNotFoundError(DomainError):
+    status_code = 404
+    message = "Membro não encontrado."
+
+
+class OrganizationAdminRemovalError(DomainError):
+    status_code = 403
+    message = "Não é possível remover um administrador da organização."
+
+
+class ActiveOrganizationDeletionError(DomainError):
+    status_code = 409
+    message = "Desative a organização antes de excluí-la."

@@ -169,3 +169,29 @@ def test_list_organizations_returns_created_ones(client, platform_admin_headers,
     response = client.get("/api/platform/organizations", headers=platform_admin_headers)
 
     assert [organization["slug"] for organization in response.json()] == ["farmaciay", "farmaciax"]
+
+
+def test_active_organization_cannot_be_deleted(client, platform_admin_headers, create_organization):
+    organization = create_organization("farmaciax")
+
+    response = client.delete(f"/api/platform/organizations/{organization['id']}", headers=platform_admin_headers)
+
+    assert response.status_code == 409
+
+
+def test_deleting_inactive_organization_drops_database_and_role(
+    client, platform_admin_headers, create_organization, database_administrator
+):
+    organization = create_organization("farmaciax")
+    client.patch(
+        f"/api/platform/organizations/{organization['id']}",
+        headers=platform_admin_headers,
+        json={"is_active": False},
+    )
+
+    response = client.delete(f"/api/platform/organizations/{organization['id']}", headers=platform_admin_headers)
+
+    assert response.status_code == 204
+    assert not database_administrator.database_exists(build_tenant_database_name("farmaciax"))
+    assert not database_administrator.role_exists(build_tenant_role_name("farmaciax"))
+    assert client.get("/api/platform/organizations", headers=platform_admin_headers).json() == []

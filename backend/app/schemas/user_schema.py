@@ -1,3 +1,4 @@
+from datetime import datetime
 from typing import Literal
 
 from pydantic import BaseModel, ConfigDict, EmailStr, Field, field_validator
@@ -44,3 +45,42 @@ class UserResponse(BaseModel):
     address: str | None
     city: str | None
     state: str | None
+
+
+class UserUpdateRequest(BaseModel):
+    model_config = ConfigDict(str_strip_whitespace=True)
+
+    name: str = Field(min_length=3, max_length=120)
+    email: EmailStr
+    age: int | None = Field(default=None, ge=1, le=120)
+    gender: Gender | None = None
+    phone: str | None = Field(default=None, min_length=8, max_length=20)
+    address: str | None = Field(default=None, min_length=3, max_length=200)
+    city: str | None = Field(default=None, min_length=2, max_length=100)
+    state: BrazilianState | None = None
+
+    @field_validator("email")
+    @classmethod
+    def lowercase_email(cls, email: str) -> str:
+        return normalize_email(email)
+
+
+class PasswordChangeRequest(BaseModel):
+    current_password: str = Field(min_length=1, max_length=128)
+    new_password: str = Field(min_length=8, max_length=128)
+
+
+class AccountDeletionRequest(BaseModel):
+    password: str = Field(min_length=1, max_length=128)
+
+
+class MemberResponse(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: int
+    role: str
+    name: str
+    email: str
+    city: str | None
+    state: str | None
+    created_at: datetime

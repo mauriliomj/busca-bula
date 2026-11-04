@@ -6,6 +6,7 @@ from fastapi import FastAPI
 from app.controllers import (
     auth_controller,
     health_controller,
+    member_controller,
     organization_controller,
     platform_controller,
     user_controller,
@@ -30,6 +31,7 @@ def create_application() -> FastAPI:
         organization_controller,
         auth_controller,
         user_controller,
+        member_controller,
         platform_controller,
     ):
         application.include_router(controller.router)

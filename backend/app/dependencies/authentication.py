@@ -5,10 +5,13 @@ from sqlalchemy.orm import Session
 from app.core.platform_database import get_platform_session
 from app.core.security import PLATFORM_SCOPE, build_tenant_scope, decode_access_token
 from app.dependencies.tenant import get_current_organization, get_tenant_session
-from app.exceptions.domain_exceptions import InvalidAccessTokenError
+from app.exceptions.domain_exceptions import (
+    InvalidAccessTokenError,
+    OrganizationAdminRequiredError,
+)
 from app.models.platform.organization import Organization
 from app.models.platform.platform_admin import PlatformAdmin
-from app.models.tenant.user import User
+from app.models.tenant.user import User, UserRole
 from app.repositories.platform_admin_repository import PlatformAdminRepository
 from app.repositories.user_repository import UserRepository
 
@@ -33,6 +36,12 @@ def get_current_member(
     if user is None:
         raise InvalidAccessTokenError()
     return user
+
+
+def require_organization_admin(current_member: User = Depends(get_current_member)) -> User:
+    if current_member.role != UserRole.ORG_ADMIN:
+        raise OrganizationAdminRequiredError()
+    return current_member
 
 
 def require_platform_admin(

@@ -57,3 +57,15 @@ def update_organization(
     platform_session: Session = Depends(get_platform_session),
 ):
     return OrganizationService(platform_session).update_organization(organization_id, request)
+
+
+@router.delete(
+    "/organizations/{organization_id}",
+    status_code=status.HTTP_204_NO_CONTENT,
+    dependencies=[Depends(require_platform_admin)],
+)
+def delete_organization(
+    organization_id: int,
+    platform_session: Session = Depends(get_platform_session),
+) -> None:
+    TenantProvisioningService(platform_session).delete_organization(organization_id)

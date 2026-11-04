@@ -111,3 +111,21 @@ def organization_headers(slug: str, token: str | None = None) -> dict[str, str]:
     if token:
         headers["Authorization"] = f"Bearer {token}"
     return headers
+
+
+def register_and_login(client, slug: str, email: str = "maria@email.com") -> str:
+    client.post("/api/auth/register", headers=organization_headers(slug), json=build_member_payload(email))
+    return login(client, slug, email, "senha-segura-1")
+
+
+def login(client, slug: str, email: str, password: str) -> str | None:
+    response = client.post(
+        "/api/auth/login",
+        headers=organization_headers(slug),
+        json={"email": email, "password": password},
+    )
+    return response.json().get("access_token")
+
+
+def login_as_organization_admin(client, slug: str) -> str:
+    return login(client, slug, f"admin@{slug}.com.br", "senha-org-123")

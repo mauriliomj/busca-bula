@@ -1,14 +1,4 @@
-from tests.conftest import build_member_payload, organization_headers
-
-
-def register_and_login(client, slug: str, email: str = "maria@email.com") -> str:
-    client.post("/api/auth/register", headers=organization_headers(slug), json=build_member_payload(email))
-    response = client.post(
-        "/api/auth/login",
-        headers=organization_headers(slug),
-        json={"email": email, "password": "senha-segura-1"},
-    )
-    return response.json()["access_token"]
+from tests.conftest import build_member_payload, organization_headers, register_and_login
 
 
 def test_health_check(client):

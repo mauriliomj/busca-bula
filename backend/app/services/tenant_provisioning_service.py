@@ -10,7 +10,12 @@ from app.core.tenant_credentials import (
     derive_tenant_password,
 )
 from app.core.tenant_database import open_tenant_session, tenant_engine_registry
-from app.exceptions.domain_exceptions import SlugAlreadyInUseError, TenantDatabaseConflictError
+from app.exceptions.domain_exceptions import (
+    ActiveOrganizationDeletionError,
+    OrganizationNotFoundError,
+    SlugAlreadyInUseError,
+    TenantDatabaseConflictError,
+)
 from app.models.platform.organization import Organization, OrganizationStatus
 from app.models.tenant.user import User, UserRole
 from app.repositories.organization_repository import OrganizationRepository
@@ -44,6 +49,15 @@ class TenantProvisioningService:
             raise
         organization.status = OrganizationStatus.ACTIVE
         return self.organization_repository.save(organization)
+
+    def delete_organization(self, organization_id: int) -> None:
+        organization = self.organization_repository.find_by_id(organization_id)
+        if organization is None:
+            raise OrganizationNotFoundError()
+        if organization.status != OrganizationStatus.INACTIVE:
+            raise ActiveOrganizationDeletionError()
+        self.drop_tenant_database(organization.slug)
+        self.organization_repository.delete(organization)
 
     def reserve_organization(self, request: OrganizationCreateRequest) -> Organization:
         if self.organization_repository.find_by_slug(request.slug) is not None:
