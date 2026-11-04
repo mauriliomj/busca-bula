@@ -19,8 +19,10 @@ class CatalogImportResponse(BaseModel):
 class CatalogCoverageResponse(BaseModel):
     active_medicines_with_leaflet: int
     active_medicines_with_price: int
+    active_medicines_with_leaflet_text: int
     leaflet_percentage: float
     price_percentage: float
+    leaflet_text_percentage: float
 
 
 class CatalogSummaryResponse(BaseModel):
@@ -28,6 +30,8 @@ class CatalogSummaryResponse(BaseModel):
     active_medicines_total: int
     leaflets_total: int
     presentations_total: int
+    leaflet_texts_total: int
+    outdated_leaflet_texts_total: int
     coverage: CatalogCoverageResponse
     latest_imports: list[CatalogImportResponse]
     is_importing: bool

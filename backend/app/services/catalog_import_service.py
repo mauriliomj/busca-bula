@@ -6,7 +6,6 @@ from sqlalchemy.orm import Session
 
 from app.core.catalog_database import open_catalog_writer_session
 from app.etl.anvisa_download import AnvisaFileDownloader
-from app.etl.catalog_loader import replace_catalog_rows
 from app.etl.catalog_sources import CatalogSource, CatalogSourceDefinition, build_catalog_source_definitions
 from app.exceptions.domain_exceptions import CatalogImportAlreadyRunningError
 from app.models.catalog.catalog_import import CatalogImport, CatalogImportStatus
@@ -19,8 +18,9 @@ MAXIMUM_ERROR_MESSAGE_LENGTH = 500
 INTERRUPTED_IMPORT_MESSAGE = "Sincronização interrompida antes de terminar."
 
 
-def download_catalog_source_file(definition: CatalogSourceDefinition) -> Path:
-    return AnvisaFileDownloader().download(definition.url, definition.file_name)
+def download_catalog_source_files(definition: CatalogSourceDefinition) -> list[Path]:
+    downloader = AnvisaFileDownloader()
+    return [downloader.download(download.url, download.file_name) for download in definition.downloads]
 
 
 def summarize_error(error: Exception) -> str:
@@ -66,8 +66,8 @@ class CatalogImportService:
     def run_import(self, catalog_import: CatalogImport) -> None:
         definition = self.source_definitions[CatalogSource(catalog_import.source)]
         try:
-            parsed_file = definition.parse(download_catalog_source_file(definition))
-            rows_loaded = replace_catalog_rows(self.session, definition.model, parsed_file.records)
+            parsed_file = definition.parse(download_catalog_source_files(definition))
+            rows_loaded = definition.load(self.session, parsed_file.records)
             catalog_import.rows_read = parsed_file.rows_read
             catalog_import.rows_loaded = rows_loaded
             self.catalog_import_repository.mark_finished(

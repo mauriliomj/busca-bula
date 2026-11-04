@@ -38,4 +38,5 @@ def import_catalog() -> None:
 
 if __name__ == "__main__":
     logging.basicConfig(level=logging.INFO, format="[busca-bula] %(message)s")
+    logging.getLogger("httpx").setLevel(logging.WARNING)
     import_catalog()

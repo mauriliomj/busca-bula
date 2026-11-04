@@ -5,8 +5,10 @@ from app.core.catalog_database import get_catalog_reader_session
 from app.dependencies.authentication import get_current_member
 from app.dependencies.tenant import get_tenant_session
 from app.models.tenant.user import User
+from app.schemas.leaflet_text_schema import LeafletTextResponse
 from app.schemas.medicine_schema import MedicineDetailResponse, MedicineSearchResponse, TherapeuticClassResponse
 from app.services.consultation_history_service import ConsultationHistoryService
+from app.services.leaflet_text_service import LeafletTextService
 from app.services.medicine_search_service import MedicineSearchService
 
 router = APIRouter(prefix="/api/medicines", tags=["medicines"], dependencies=[Depends(get_current_member)])
@@ -40,3 +42,11 @@ def show_medicine(
     medicine = search_service.find_medicine(registration_number)
     ConsultationHistoryService(tenant_session).record_consultation(current_member, medicine)
     return search_service.build_detail(medicine)
+
+
+@router.get("/{registration_number}/leaflet", response_model=LeafletTextResponse)
+def show_medicine_leaflet(
+    registration_number: str = Path(pattern=r"^\d{9}$"),
+    catalog_session: Session = Depends(get_catalog_reader_session),
+):
+    return LeafletTextService(catalog_session).show_leaflet_text(registration_number)

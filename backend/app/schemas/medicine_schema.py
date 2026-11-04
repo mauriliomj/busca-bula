@@ -58,6 +58,7 @@ class MedicineDetailResponse(BaseModel):
     is_active: bool
     registration_expires_on: date | None
     leaflet: LeafletResponse | None
+    leaflet_text_available: bool
     presentations: list[PresentationResponse]
     consumer_price_tax_rates: list[str]
 

@@ -1,5 +1,7 @@
 from pathlib import Path
 
+import pandas as pd
+
 MEDICINE_CATALOG_SAMPLE = (
     "TIPO_PRODUTO;NOME_PRODUTO;DATA_FINALIZACAO_PROCESSO;CATEGORIA_REGULATORIA;NUMERO_REGISTRO_PRODUTO;"
     "DATA_VENCIMENTO_REGISTRO;NUMERO_PROCESSO;CLASSE_TERAPEUTICA;EMPRESA_DETENTORA_REGISTRO;SITUACAO_REGISTRO;PRINCIPIO_ATIVO\n"
@@ -48,4 +50,24 @@ def write_leaflet_index(directory: Path) -> Path:
 def write_price_table(directory: Path) -> Path:
     path = directory / "TA_PRECO_MEDICAMENTO.csv"
     path.write_bytes(PRICE_TABLE_SAMPLE.encode("utf-8-sig"))
+    return path
+
+
+CHATBULARIO_ROWS = [
+    {"registro": "100430001", "nome_produto": "DIPIRONA MONOIDRATADA", "expediente": "0000000001", "secao_id": 1,
+     "resposta": "Indicado como analgésico\x00 e antitérmico."},
+    {"registro": "100430001", "nome_produto": "DIPIRONA MONOIDRATADA", "expediente": "0000000001", "secao_id": 6,
+     "resposta": "Adultos: 1 comprimido até 4 vezes ao dia.   \r\nNão exceda a dose."},
+    {"registro": "100430001", "nome_produto": "DIPIRONA MONOIDRATADA", "expediente": "0000000001", "secao_id": 9,
+     "resposta": "Procure socorro médico.\nIII -"},
+    {"registro": "100430001", "nome_produto": "DIPIRONA MONOIDRATADA", "expediente": "0000000001", "secao_id": 8,
+     "resposta": ""},
+    {"registro": "12345678", "nome_produto": "LOSARTANA", "expediente": "0000000002", "secao_id": 1,
+     "resposta": "Indicado para hipertensão."},
+]
+
+
+def write_chatbulario_dataset(directory: Path) -> Path:
+    path = directory / "chatbulario_train.parquet"
+    pd.DataFrame(CHATBULARIO_ROWS).to_parquet(path, index=False)
     return path

@@ -6,6 +6,7 @@ from sqlalchemy.orm import Session
 from app.core.text_normalization import normalize_search_text, split_search_terms
 from app.exceptions.domain_exceptions import MedicineNotFoundError, SearchCriteriaRequiredError
 from app.models.catalog.medicine import Medicine
+from app.repositories.leaflet_text_repository import LeafletTextRepository
 from app.repositories.medicine_search_repository import MedicineSearchCriteria, MedicineSearchRepository
 from app.schemas.medicine_schema import (
     LeafletResponse,
@@ -35,6 +36,7 @@ def sort_tax_rate_labels(labels: set[str]) -> list[str]:
 class MedicineSearchService:
     def __init__(self, catalog_session: Session) -> None:
         self.repository = MedicineSearchRepository(catalog_session)
+        self.leaflet_text_repository = LeafletTextRepository(catalog_session)
 
     def search(
         self,
@@ -94,6 +96,7 @@ class MedicineSearchService:
             process_number=medicine.process_number,
             registration_expires_on=medicine.registration_expires_on,
             leaflet=LeafletResponse.model_validate(leaflet) if leaflet else None,
+            leaflet_text_available=self.leaflet_text_repository.has_document(medicine.registration_number),
             presentations=[PresentationResponse.model_validate(item) for item in presentations],
             consumer_price_tax_rates=sort_tax_rate_labels(tax_rates),
         )

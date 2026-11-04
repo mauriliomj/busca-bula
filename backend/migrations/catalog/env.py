@@ -4,7 +4,7 @@ from sqlalchemy.pool import NullPool
 
 from app.core.catalog_database import CatalogBase
 from app.core.database_urls import build_catalog_writer_url
-from app.models.catalog import catalog_import, leaflet, medicine, medicine_presentation
+from app.models.catalog import catalog_import, leaflet, leaflet_document, medicine, medicine_presentation
 
 config = context.config
 

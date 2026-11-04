@@ -21,6 +21,7 @@ class Settings(BaseSettings):
     anvisa_medicines_url: str = "https://dados.anvisa.gov.br/dados/DADOS_ABERTOS_MEDICAMENTOS.csv"
     anvisa_leaflets_url: str = "https://dados.anvisa.gov.br/dados/CONSULTAS/DOCUMENTOS/TA_CONSULTA_BULA_PRODUTO.CSV"
     cmed_prices_url: str = "https://dados.anvisa.gov.br/dados/TA_PRECO_MEDICAMENTO.csv"
+    chatbulario_dataset_url: str = "https://huggingface.co/datasets/walmeidadf/ChatBulario/resolve/main/data"
 
     jwt_secret: str = "dev-jwt-secret"
     jwt_algorithm: str = "HS256"

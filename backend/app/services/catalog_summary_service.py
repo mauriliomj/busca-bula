@@ -23,17 +23,22 @@ class CatalogSummaryService:
         active_medicines = self.summary_repository.count_active_medicines()
         with_leaflet = self.summary_repository.count_active_medicines_with_leaflet()
         with_price = self.summary_repository.count_active_medicines_with_price()
+        with_text = self.summary_repository.count_active_medicines_with_leaflet_text()
         latest_imports = self.catalog_import_repository.list_latest_per_source()
         return CatalogSummaryResponse(
             medicines_total=self.summary_repository.count_medicines(),
             active_medicines_total=active_medicines,
             leaflets_total=self.summary_repository.count_leaflets(),
             presentations_total=self.summary_repository.count_presentations(),
+            leaflet_texts_total=self.summary_repository.count_leaflet_texts(),
+            outdated_leaflet_texts_total=self.summary_repository.count_outdated_leaflet_texts(),
             coverage=CatalogCoverageResponse(
                 active_medicines_with_leaflet=with_leaflet,
                 active_medicines_with_price=with_price,
+                active_medicines_with_leaflet_text=with_text,
                 leaflet_percentage=calculate_percentage(with_leaflet, active_medicines),
                 price_percentage=calculate_percentage(with_price, active_medicines),
+                leaflet_text_percentage=calculate_percentage(with_text, active_medicines),
             ),
             latest_imports=[CatalogImportResponse.model_validate(item) for item in latest_imports],
             is_importing=any(item.status == CatalogImportStatus.RUNNING for item in latest_imports),

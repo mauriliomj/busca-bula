@@ -109,3 +109,33 @@ class MedicineNotFoundError(DomainError):
 class ConsultationNotFoundError(DomainError):
     status_code = 404
     message = "Consulta não encontrada no seu histórico."
+
+
+class InvalidLeafletPdfError(DomainError):
+    status_code = 415
+    message = "Envie a bula em PDF."
+
+
+class LeafletPdfTooLargeError(DomainError):
+    status_code = 413
+    message = "O PDF da bula deve ter no máximo 15 MB."
+
+
+class LeafletPdfWithoutTextError(DomainError):
+    status_code = 422
+    message = "Este PDF não tem texto selecionável (parece digitalizado). Envie a versão do Bulário Eletrônico."
+
+
+class ProfessionalLeafletError(DomainError):
+    status_code = 422
+    message = "Este PDF parece ser a bula do profissional. Envie a bula do paciente."
+
+
+class UnrecognizedLeafletError(DomainError):
+    status_code = 422
+    message = "Não foi possível identificar as seções da bula do paciente neste PDF."
+
+
+class LeafletTextNotFoundError(DomainError):
+    status_code = 404
+    message = "O texto desta bula ainda não está disponível no Busca Bula."

@@ -82,7 +82,10 @@ def clean_catalog(catalog_database):
     yield
     with get_catalog_writer_engine().begin() as connection:
         connection.execute(
-            text("TRUNCATE medicines, leaflets, medicine_presentations, catalog_imports RESTART IDENTITY")
+            text(
+                "TRUNCATE medicines, leaflets, medicine_presentations, catalog_imports, "
+                "leaflet_documents, leaflet_sections RESTART IDENTITY"
+            )
         )
 
 

@@ -6,7 +6,12 @@ from app.core.settings import get_settings
 from app.core.tenant_credentials import build_tenant_role_name, derive_tenant_password
 from app.etl.catalog_sources import CatalogSource
 from app.services import catalog_import_service
-from tests.catalog_samples import write_leaflet_index, write_medicine_catalog, write_price_table
+from tests.catalog_samples import (
+    write_chatbulario_dataset,
+    write_leaflet_index,
+    write_medicine_catalog,
+    write_price_table,
+)
 
 pytestmark = pytest.mark.usefixtures("clean_catalog")
 
@@ -17,11 +22,12 @@ def sample_source_files(tmp_path, monkeypatch):
         CatalogSource.MEDICINES: write_medicine_catalog(tmp_path),
         CatalogSource.LEAFLETS: write_leaflet_index(tmp_path),
         CatalogSource.PRICES: write_price_table(tmp_path),
+        CatalogSource.LEAFLET_TEXTS: write_chatbulario_dataset(tmp_path),
     }
     monkeypatch.setattr(
         catalog_import_service,
-        "download_catalog_source_file",
-        lambda definition: files[definition.source],
+        "download_catalog_source_files",
+        lambda definition: [files[definition.source]],
     )
     return files
 
@@ -52,13 +58,16 @@ def test_catalog_import_loads_all_sources(client, platform_admin_headers, sample
     summary = client.get("/api/platform/catalog", headers=platform_admin_headers).json()
 
     assert started.status_code == 202
-    assert sorted(item["source"] for item in started.json()) == ["leaflets", "medicines", "prices"]
+    assert sorted(item["source"] for item in started.json()) == ["leaflet_texts", "leaflets", "medicines", "prices"]
     assert summary["medicines_total"] == 2
     assert summary["active_medicines_total"] == 2
     assert summary["leaflets_total"] == 1
     assert summary["presentations_total"] == 2
     assert summary["coverage"]["leaflet_percentage"] == 50.0
     assert summary["coverage"]["price_percentage"] == 50.0
+    assert summary["leaflet_texts_total"] == 2
+    assert summary["coverage"]["leaflet_text_percentage"] == 100.0
+    assert summary["outdated_leaflet_texts_total"] == 1
     assert {item["status"] for item in summary["latest_imports"]} == {"succeeded"}
     assert summary["is_importing"] is False
 
@@ -69,9 +78,9 @@ def test_failed_source_is_recorded_without_blocking_others(
     def download_or_fail(definition):
         if definition.source == CatalogSource.PRICES:
             raise ConnectionError("servidor indisponível")
-        return sample_source_files[definition.source]
+        return [sample_source_files[definition.source]]
 
-    monkeypatch.setattr(catalog_import_service, "download_catalog_source_file", download_or_fail)
+    monkeypatch.setattr(catalog_import_service, "download_catalog_source_files", download_or_fail)
 
     client.post("/api/platform/catalog/imports", headers=platform_admin_headers)
     summary = client.get("/api/platform/catalog", headers=platform_admin_headers).json()
