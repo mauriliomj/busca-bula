@@ -1,10 +1,11 @@
 <script setup>
-import { onMounted, ref } from 'vue'
+import { computed, onMounted, ref } from 'vue'
 import {
   Accessibility,
   ArrowLeft,
   Building2,
   CheckCircle,
+  Database,
   ExternalLink,
   Globe,
   LockKeyhole,
@@ -19,6 +20,7 @@ import {
   UserRound
 } from 'lucide-vue-next'
 import BrandingEditor from '../components/branding-editor.vue'
+import CatalogPanel from '../components/catalog-panel.vue'
 import { PLATFORM_ADMIN_ROLE, currentUserRole, isAuthenticated, logoutUser } from '../services/auth-service'
 import { extractErrorMessage } from '../services/http-client'
 import { buildOrganizationHostname, buildOrganizationUrl, isPlatformContext } from '../services/organization-context'
@@ -52,10 +54,30 @@ const descricaoStatus = {
   provisioning: 'Criando'
 }
 
-const menuItems = [
-  { label: 'Organizações', icon: Building2, href: '/org', active: true },
+const SECAO_POR_ANCORA = { '#catalogo': 'catalogo' }
+
+const secaoAtual = ref(SECAO_POR_ANCORA[window.location.hash] || 'organizacoes')
+
+const cabecalhos = {
+  organizacoes: {
+    titulo: 'Organizações',
+    descricao: 'Gerencie as farmácias e planos de saúde que oferecem o Busca Bula aos seus clientes.',
+    icone: Building2
+  },
+  catalogo: {
+    titulo: 'Catálogo ANVISA',
+    descricao: 'Acompanhe e sincronize os medicamentos, bulas e preços usados por todas as organizações.',
+    icone: Database
+  }
+}
+
+const cabecalho = computed(() => cabecalhos[secaoAtual.value])
+
+const menuItems = computed(() => [
+  { label: 'Organizações', icon: Building2, href: '#organizacoes', secao: 'organizacoes' },
+  { label: 'Catálogo ANVISA', icon: Database, href: '#catalogo', secao: 'catalogo' },
   { label: 'Sair', icon: LogOut, href: '/login', sair: true }
-]
+].map((item) => ({ ...item, active: item.secao === secaoAtual.value })))
 
 function criarFormularioVazio() {
   return { nome: '', subdominio: '', adminNome: '', adminEmail: '', adminSenha: '' }
@@ -167,8 +189,9 @@ async function excluirOrganizacao(organizacao) {
   }
 }
 
-function sair() {
-  logoutUser()
+function selecionarItem(item) {
+  if (item.sair) logoutUser()
+  if (item.secao) secaoAtual.value = item.secao
 }
 
 onMounted(() => {
@@ -214,7 +237,7 @@ onMounted(() => {
             class="menu-item"
             :class="{ active: item.active }"
             :aria-current="item.active ? 'page' : undefined"
-            @click="item.sair && sair()"
+            @click="selecionarItem(item)"
           >
             <component :is="item.icon" :size="17" />
             <span>{{ item.label }}</span>
@@ -224,14 +247,16 @@ onMounted(() => {
 
       <main class="main-content">
         <div class="page-heading">
-          <div class="heading-icon"><Building2 :size="27" /></div>
+          <div class="heading-icon"><component :is="cabecalho.icone" :size="27" /></div>
           <div>
-            <h1>Organizações</h1>
-            <p>Gerencie as farmácias e planos de saúde que oferecem o Busca Bula aos seus clientes.</p>
+            <h1>{{ cabecalho.titulo }}</h1>
+            <p>{{ cabecalho.descricao }}</p>
           </div>
         </div>
 
-        <div class="content-grid">
+        <CatalogPanel v-if="secaoAtual === 'catalogo'" />
+
+        <div v-else class="content-grid">
           <section class="table-card">
             <h2 class="section-title"><Building2 :size="17" />Organizações cadastradas</h2>
 

@@ -92,11 +92,32 @@ O banco PostgreSQL fica acessível apenas entre os containers.
 
 | Perfil                          | Onde entra                          | Páginas                                                   |
 | ------------------------------- | ----------------------------------- | --------------------------------------------------------- |
-| Administrador da plataforma     | `localhost:5173/login`              | `/org`: criar, ativar, desativar, excluir organizações e editar a identidade visual delas |
+| Administrador da plataforma     | `localhost:5173/login`              | `/org`: organizações e identidade visual delas; `/org#catalogo`: catálogo ANVISA |
 | Administrador da organização    | `<subdominio>.localhost:5173/login` | `/members`: membros e identidade visual da organização; `/user`: perfil |
 | Membro                          | `<subdominio>.localhost:5173/login` | `/user`: perfil, alteração de senha e exclusão da conta |
 
 Uma organização só pode ser excluída depois de desativada. A exclusão apaga o banco e o usuário PostgreSQL dela.
+
+## Catálogo ANVISA
+
+O catálogo junta três fontes públicas em um banco próprio (`busca_bula_catalog`), compartilhado por todas as organizações em modo somente leitura:
+
+| Fonte | Arquivo | O que vira |
+| ----- | ------- | ---------- |
+| Medicamentos registrados (ANVISA) | `DADOS_ABERTOS_MEDICAMENTOS.csv` | `medicines`: um registro por número de registro |
+| Índice de bulas (Bulário Eletrônico) | `TA_CONSULTA_BULA_PRODUTO.CSV` | `leaflets`: bula do paciente de cada registro |
+| Preços CMED | `TA_PRECO_MEDICAMENTO.csv` | `medicine_presentations`: apresentações com EAN e preços por alíquota de ICMS |
+
+As três tabelas se ligam pelo número de registro de 9 dígitos (na tabela CMED, os 9 primeiros dígitos do registro da apresentação).
+
+Para sincronizar, use o botão **Sincronizar agora** em `/org#catalogo` ou rode:
+
+```bash
+docker compose exec backend python -m app.commands.import_catalog
+docker compose exec backend python -m app.commands.import_catalog --source prices
+```
+
+Os arquivos baixados ficam em cache no volume `catalog_cache`, e o download só se repete quando a ANVISA publica uma versão nova (`If-Modified-Since`). A primeira sincronização baixa cerca de 80 MB.
 
 ## Identidade visual
 
@@ -110,6 +131,7 @@ Os navegadores atuais resolvem qualquer `*.localhost` para a própria máquina, 
 | ---------------------- | ------------------------------------------------ | ---------------------------------------- |
 | `busca_bula`           | organizações e administradores da plataforma     | backend                                  |
 | `tenant_<subdominio>`  | usuários e identidade visual da organização      | somente o usuário `tenant_<subdominio>`  |
+| `busca_bula_catalog`   | medicamentos, bulas e preços (dados públicos)    | `..._writer` grava (ETL); `..._reader` só lê |
 
 - Cada organização tem um banco e um usuário PostgreSQL próprios, criados automaticamente pelo painel. O acesso público ao banco é revogado, então o usuário de uma organização não consegue nem se conectar ao banco de outra.
 - A senha do usuário de cada banco é derivada de `TENANT_DATABASE_SECRET` e não fica gravada em lugar nenhum.
