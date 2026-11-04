@@ -228,5 +228,10 @@ function excluirLogo() {
 .save-button:disabled, .outline-button:disabled, .text-button:disabled { opacity: .6; cursor: not-allowed; }
 
 .error-message { color: #c0392b; font-size: .85rem; font-weight: 600; }
+
 .success-message { display: inline-flex; align-items: center; gap: 8px; color: var(--teal-dark); font-size: .85rem; font-weight: 600; }
+
+@media (max-width: 999px) {
+  .color-input input[type='text'] { font-size: 1rem; }
+}
 </style>

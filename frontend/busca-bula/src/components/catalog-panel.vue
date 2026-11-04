@@ -382,7 +382,7 @@ onBeforeUnmount(() => clearTimeout(temporizador))
 
 @media (max-width: 900px) {
   .kpi-row, .meters { grid-template-columns: 1fr; }
-  .upload-field input[type='text'] { width: 100%; }
+  .upload-field input[type='text'] { width: 100%; font-size: 1rem; }
   .imports-table thead { display: none; }
   .imports-table tr { display: grid; gap: 4px; padding: 10px 0; border-bottom: 1px solid var(--line); }
   .imports-table td { padding: 0; border: 0; }

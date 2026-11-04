@@ -1,5 +1,6 @@
 <script setup>
 import { computed, onMounted, ref } from 'vue'
+import { useRoute } from 'vue-router'
 import {
   ArrowLeft,
   Barcode,
@@ -13,14 +14,14 @@ import {
   TriangleAlert
 } from 'lucide-vue-next'
 import MemberLayout from '../components/member-layout.vue'
-import { requireMemberSession } from '../services/auth-service'
 import { extractErrorMessage } from '../services/http-client'
 import { fetchMedicine, fetchMedicineLeaflet } from '../services/medicine-service'
 
 const ALIQUOTA_PADRAO = '18%'
 const BULARIO_ELETRONICO_URL = 'https://consultas.anvisa.gov.br/#/bulario/'
 
-const registro = new URLSearchParams(window.location.search).get('registro') || ''
+const route = useRoute()
+const registro = route.params.registro
 const medicamento = ref(null)
 const carregando = ref(true)
 const erro = ref('')
@@ -33,10 +34,8 @@ const formatadorDeData = new Intl.DateTimeFormat('pt-BR', { dateStyle: 'long' })
 const formatadorDeMesAno = new Intl.DateTimeFormat('pt-BR', { month: 'long', year: 'numeric', timeZone: 'UTC' })
 
 const voltarPara = computed(() => {
-  const anterior = document.referrer ? new URL(document.referrer) : null
-  return anterior && anterior.origin === window.location.origin && anterior.pathname === '/search'
-    ? `${anterior.pathname}${anterior.search}`
-    : '/search'
+  const anterior = window.history.state?.back
+  return typeof anterior === 'string' && (anterior === '/' || anterior.startsWith('/?')) ? anterior : { name: 'search' }
 })
 
 const informacoes = computed(() => {
@@ -76,11 +75,6 @@ async function carregarBula() {
 }
 
 async function carregarMedicamento() {
-  if (!/^\d{9}$/.test(registro)) {
-    erro.value = 'Medicamento não encontrado.'
-    carregando.value = false
-    return
-  }
   try {
     medicamento.value = await fetchMedicine(registro)
     const aliquotas = medicamento.value.aliquotasDisponiveis
@@ -93,9 +87,7 @@ async function carregarMedicamento() {
   }
 }
 
-onMounted(() => {
-  if (requireMemberSession()) carregarMedicamento()
-})
+onMounted(carregarMedicamento)
 </script>
 
 <template>
@@ -105,7 +97,7 @@ onMounted(() => {
     :descricao="medicamento?.principioAtivo || ''"
     :icone="Pill"
   >
-    <a :href="voltarPara" class="back-link"><ArrowLeft :size="15" />Voltar para a busca</a>
+    <RouterLink :to="voltarPara" class="back-link"><ArrowLeft :size="16" />Voltar para a busca</RouterLink>
 
     <p v-if="carregando" class="empty-state">Carregando medicamento...</p>
     <p v-else-if="erro" class="error-message" role="alert">{{ erro }}</p>
@@ -237,68 +229,82 @@ onMounted(() => {
 </template>
 
 <style scoped>
-.back-link { display: inline-flex; align-items: center; gap: 6px; font-size: .85rem; font-weight: 600; color: var(--teal); margin-bottom: 18px; }
+.back-link { display: inline-flex; align-items: center; gap: 6px; min-height: 44px; font-size: .9rem; font-weight: 600; color: var(--teal); margin: -8px 0 10px; }
 .back-link:hover { color: var(--teal-dark); }
 .empty-state { font-size: .9rem; color: var(--muted); }
 .error-message { color: var(--danger); font-size: .9rem; font-weight: 600; }
 
-.detail-grid { display: grid; grid-template-columns: 1.4fr 1fr; gap: 20px; align-items: start; margin-bottom: 20px; }
-.detail-card { background: #fff; border-radius: 16px; padding: 22px 24px; box-shadow: 0 4px 16px rgba(18, 58, 92, .06); min-width: 0; }
+.detail-grid { display: grid; grid-template-columns: 1fr; gap: 16px; align-items: start; margin-bottom: 16px; }
+.detail-card { background: #fff; border-radius: 16px; padding: 18px 16px; box-shadow: var(--card-shadow); min-width: 0; }
 .card-title { display: flex; align-items: center; gap: 10px; font-size: 1rem; font-weight: 700; color: var(--navy); margin-bottom: 14px; }
-.card-title svg { color: var(--teal); }
+.card-title svg { color: var(--teal); flex: none; }
 
 .registration-status { display: inline-flex; align-items: center; gap: 6px; padding: 4px 12px; border-radius: 999px; font-size: .78rem; font-weight: 700; background: var(--mint); color: var(--teal-dark); margin-bottom: 14px; }
 .registration-status.inactive { background: var(--bg-soft); color: var(--muted); }
-.info-list { display: grid; grid-template-columns: 1fr 1fr; gap: 14px 20px; }
+.info-list { display: grid; grid-template-columns: 1fr; gap: 12px 20px; }
 .info-list dt { font-size: .75rem; font-weight: 600; color: var(--muted); }
-.info-list dd { font-size: .9rem; color: var(--navy); overflow-wrap: anywhere; }
+.info-list dd { font-size: .92rem; color: var(--navy); overflow-wrap: anywhere; }
 
 .leaflet-text { font-size: .9rem; color: var(--text); }
 .leaflet-hint { font-size: .8rem; color: var(--muted); margin: 8px 0 16px; }
-.outline-button { display: inline-flex; align-items: center; gap: 8px; border: 1.5px solid var(--teal); color: var(--teal); font-weight: 600; font-size: .85rem; padding: 9px 18px; border-radius: 999px; transition: all .2s; }
+.outline-button { display: inline-flex; align-items: center; justify-content: center; gap: 8px; min-height: 44px; border: 1.5px solid var(--teal); color: var(--teal); font-weight: 600; font-size: .88rem; padding: 0 18px; border-radius: 999px; transition: all .2s; }
 .outline-button:hover { background: var(--teal); color: #fff; }
-.primary-link { display: inline-flex; align-items: center; gap: 8px; margin-top: 14px; background: var(--teal); color: #fff; font-weight: 700; font-size: .88rem; padding: 10px 22px; border-radius: 999px; transition: background .2s; }
+.primary-link { display: flex; align-items: center; justify-content: center; gap: 8px; min-height: 48px; margin-top: 14px; background: var(--teal); color: #fff; font-weight: 700; font-size: .95rem; padding: 0 22px; border-radius: 999px; transition: background .2s; }
 .primary-link:hover { background: var(--teal-dark); }
 
-.leaflet-card { margin-bottom: 20px; scroll-margin-top: 90px; }
+.leaflet-card { margin-bottom: 16px; scroll-margin-top: calc(var(--header-height) + 16px); }
 .outdated-note { display: flex; align-items: flex-start; gap: 10px; background: #fff4e0; color: #7a4d00; border-radius: 12px; padding: 12px 14px; font-size: .85rem; margin-bottom: 14px; }
 .outdated-note svg { flex: none; margin-top: 1px; color: #9a6100; }
 .outdated-note a { color: inherit; font-weight: 700; text-decoration: underline; }
 .leaflet-section { border-top: 1px solid var(--line); }
 .leaflet-section:last-of-type { border-bottom: 1px solid var(--line); }
-.leaflet-section summary { display: flex; align-items: center; gap: 12px; padding: 14px 4px; cursor: pointer; list-style: none; font-weight: 700; color: var(--navy); font-size: .92rem; }
+.leaflet-section summary { display: flex; align-items: center; gap: 12px; min-height: 52px; padding: 12px 2px; cursor: pointer; list-style: none; font-weight: 700; color: var(--navy); font-size: .92rem; }
 .leaflet-section summary::-webkit-details-marker { display: none; }
-.leaflet-section summary::after { content: '+'; margin-left: auto; font-size: 1.2rem; font-weight: 600; color: var(--teal); }
+.leaflet-section summary::after { content: '+'; margin-left: auto; font-size: 1.3rem; font-weight: 600; color: var(--teal); }
 .leaflet-section[open] summary::after { content: '–'; }
 .section-number { width: 26px; height: 26px; border-radius: 50%; background: var(--mint); color: var(--teal-dark); display: grid; place-items: center; font-size: .78rem; flex: none; }
-.section-content { white-space: pre-line; font-size: .9rem; line-height: 1.65; color: var(--text); padding: 0 4px 18px 42px; overflow-wrap: anywhere; }
+.section-content { white-space: pre-line; font-size: .95rem; line-height: 1.7; color: var(--text); padding: 0 2px 18px; overflow-wrap: anywhere; }
 .attribution { margin-top: 14px; font-size: .75rem; color: var(--muted); }
 .attribution a { color: var(--teal); font-weight: 600; }
 
-.presentations-header { display: flex; align-items: center; justify-content: space-between; gap: 16px; flex-wrap: wrap; margin-bottom: 4px; }
+.presentations-header { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; margin-bottom: 4px; }
 .presentations-header .card-title { margin-bottom: 0; }
 .tax-select { display: inline-flex; align-items: center; gap: 8px; font-size: .8rem; font-weight: 600; color: var(--navy); }
-.tax-select select { border: 1px solid var(--line); border-radius: 10px; padding: 7px 10px; font-size: .85rem; color: var(--navy); background: #fff; }
+.tax-select select { border: 1px solid var(--line); border-radius: 10px; padding: 8px 10px; font-size: 1rem; color: var(--navy); background: #fff; }
 .price-note { font-size: .8rem; color: var(--muted); margin: 10px 0 14px; }
 
-.presentations-table { width: 100%; border-collapse: collapse; font-size: .85rem; }
-.presentations-table th { text-align: left; font-size: .72rem; font-weight: 700; color: var(--muted); text-transform: uppercase; letter-spacing: .04em; padding: 0 10px 10px; border-bottom: 1px solid var(--line); }
-.presentations-table td { padding: 12px 10px; border-bottom: 1px solid var(--line); color: var(--navy); vertical-align: top; }
-.presentations-table tr:last-child td { border-bottom: 0; }
-.presentations-table .numeric { text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; font-weight: 700; }
+.presentations-table { width: 100%; border-collapse: collapse; font-size: .88rem; }
+.presentations-table thead { display: none; }
+.presentations-table tr { display: grid; gap: 4px; padding: 12px 0; border-bottom: 1px solid var(--line); }
+.presentations-table tr:last-child { border-bottom: 0; }
+.presentations-table td { color: var(--navy); }
+.presentations-table td[data-label]::before { content: attr(data-label) ': '; color: var(--muted); font-size: .75rem; font-weight: 600; }
+.presentations-table .numeric { font-variant-numeric: tabular-nums; white-space: nowrap; font-weight: 700; }
 .barcodes { font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
 .not-marketed { display: block; font-size: .72rem; color: var(--muted); margin-top: 2px; }
 .label-badge { display: inline-flex; align-items: center; gap: 4px; padding: 3px 10px; border-radius: 999px; background: var(--bg-soft); font-size: .72rem; font-weight: 600; color: var(--navy); white-space: nowrap; }
 
-@media (max-width: 900px) {
-  .detail-grid { grid-template-columns: 1fr; }
-  .presentations-table thead { display: none; }
-  .presentations-table tr { display: grid; gap: 4px; padding: 12px 0; border-bottom: 1px solid var(--line); }
-  .presentations-table td { padding: 0; border: 0; }
-  .presentations-table .numeric { text-align: left; }
-  .presentations-table td[data-label]::before { content: attr(data-label) ': '; color: var(--muted); font-size: .75rem; font-weight: 600; }
+@media (min-width: 520px) {
+  .info-list { grid-template-columns: 1fr 1fr; }
+  .primary-link { display: inline-flex; }
 }
-@media (max-width: 520px) {
-  .info-list { grid-template-columns: 1fr; }
+
+@media (min-width: 640px) {
+  .detail-card { padding: 22px 24px; }
+  .detail-grid, .leaflet-card { margin-bottom: 20px; }
+  .detail-grid { gap: 20px; }
+  .section-content { font-size: .9rem; line-height: 1.65; padding: 0 4px 18px 42px; }
+  .tax-select select { font-size: .85rem; }
+}
+
+@media (min-width: 900px) {
+  .detail-grid { grid-template-columns: 1.4fr 1fr; }
+  .presentations-table thead { display: table-header-group; }
+  .presentations-table tr { display: table-row; padding: 0; }
+  .presentations-table th { text-align: left; font-size: .72rem; font-weight: 700; color: var(--muted); text-transform: uppercase; letter-spacing: .04em; padding: 0 10px 10px; border-bottom: 1px solid var(--line); }
+  .presentations-table td { padding: 12px 10px; border-bottom: 1px solid var(--line); vertical-align: top; }
+  .presentations-table tr:last-child td { border-bottom: 0; }
+  .presentations-table td[data-label]::before { content: none; }
+  .presentations-table .numeric { text-align: right; }
 }
 </style>

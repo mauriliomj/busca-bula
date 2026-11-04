@@ -1,14 +1,11 @@
 import httpClient from './http-client'
 import { isPlatformContext } from './organization-context'
-import {
-  clearAccessToken,
-  hasValidAccessToken,
-  readAccessTokenPayload,
-  saveAccessToken,
-} from './token-storage'
+import { closeSession } from './session-service'
+import { readAccessTokenPayload, saveAccessToken } from './token-storage'
 
 export const PLATFORM_ADMIN_ROLE = 'platform_admin'
 export const ORGANIZATION_ADMIN_ROLE = 'org_admin'
+export const MEMBER_ROLE = 'member'
 
 const homePaths = {
   [PLATFORM_ADMIN_ROLE]: '/org',
@@ -38,11 +35,7 @@ export async function loginUser(email, senha) {
 }
 
 export function logoutUser() {
-  clearAccessToken()
-}
-
-export function isAuthenticated() {
-  return hasValidAccessToken()
+  return closeSession()
 }
 
 export function currentUserRole() {
@@ -50,22 +43,14 @@ export function currentUserRole() {
 }
 
 export function homePathForRole(role) {
-  return homePaths[role] ?? '/user'
+  return homePaths[role] ?? '/'
 }
 
-export function readNextPath() {
-  const next = new URLSearchParams(window.location.search).get('next')
-  return next && next.startsWith('/') && !next.startsWith('//') ? next : null
+export function sanitizeNextPath(next) {
+  return typeof next === 'string' && next.startsWith('/') && !next.startsWith('//') ? next : null
 }
 
-export function resolvePostLoginPath(role) {
-  const next = readNextPath()
-  return next && role !== PLATFORM_ADMIN_ROLE ? next : homePathForRole(role)
-}
-
-export function requireMemberSession() {
-  if (!isPlatformContext() && isAuthenticated() && currentUserRole() !== PLATFORM_ADMIN_ROLE) return true
-  const currentPath = `${window.location.pathname}${window.location.search}`
-  window.location.href = `/login?next=${encodeURIComponent(currentPath)}`
-  return false
+export function resolvePostLoginPath(role, next) {
+  const safeNext = sanitizeNextPath(next)
+  return safeNext && role !== PLATFORM_ADMIN_ROLE ? safeNext : homePathForRole(role)
 }

@@ -1,15 +1,25 @@
+import { ref } from 'vue'
+
 const ACCESS_TOKEN_KEY = 'busca-bula.access-token'
 
+const accessToken = ref(localStorage.getItem(ACCESS_TOKEN_KEY))
+
+window.addEventListener('storage', (event) => {
+  if (event.key === ACCESS_TOKEN_KEY) accessToken.value = event.newValue
+})
+
 export function readAccessToken() {
-  return localStorage.getItem(ACCESS_TOKEN_KEY)
+  return accessToken.value
 }
 
 export function saveAccessToken(token) {
   localStorage.setItem(ACCESS_TOKEN_KEY, token)
+  accessToken.value = token
 }
 
 export function clearAccessToken() {
   localStorage.removeItem(ACCESS_TOKEN_KEY)
+  accessToken.value = null
 }
 
 export function readAccessTokenPayload() {

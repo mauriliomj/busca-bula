@@ -1,0 +1,88 @@
+:root {
+  --navy: var(--brand-secondary, #123a5c);
+  --teal: var(--brand-primary, #0f9e94);
+  --teal-dark: var(--brand-primary-dark, #0b857c);
+  --mint: var(--brand-primary-soft, #d9f1ee);
+  --bg-soft: #eef7f8;
+  --text: #2b4a63;
+  --muted: #6b8497;
+  --line: #dfe9ee;
+  --danger: #c0392b;
+  --danger-soft: #fbe9e7;
+  --card-shadow: 0 4px 16px rgba(18, 58, 92, .06);
+  --header-height: 60px;
+  --bottom-nav-height: 64px;
+  --safe-top: env(safe-area-inset-top, 0px);
+  --safe-bottom: env(safe-area-inset-bottom, 0px);
+  --font-family: 'Plus Jakarta Sans', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+  color-scheme: light;
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
+}
+
+:where(*, *::before, *::after) {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+html {
+  -webkit-tap-highlight-color: transparent;
+}
+
+body {
+  min-height: 100dvh;
+  background: var(--bg-soft);
+  color: var(--text);
+  font-family: var(--font-family);
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+}
+
+:where(a) {
+  color: inherit;
+  text-decoration: none;
+}
+
+:where(button, input, select, textarea) {
+  font: inherit;
+  color: inherit;
+}
+
+:where(img, svg) {
+  display: block;
+  max-width: 100%;
+}
+
+:where(button) {
+  touch-action: manipulation;
+}
+
+:focus-visible {
+  outline: 3px solid var(--teal);
+  outline-offset: 2px;
+  border-radius: 6px;
+}
+
+.visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+}
+
+@media (min-width: 1000px) {
+  :root {
+    --header-height: 70px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    transition: none !important;
+    animation: none !important;
+    scroll-behavior: auto !important;
+  }
+}

@@ -1,9 +1,11 @@
-const baseDomain = import.meta.env.VITE_BASE_DOMAIN || 'localhost'
+const baseDomain = (import.meta.env.VITE_BASE_DOMAIN || 'localhost').toLowerCase()
+const defaultOrganization = (import.meta.env.VITE_DEFAULT_ORGANIZATION || '').trim().toLowerCase() || null
 
 export function resolveOrganizationSlug() {
   const hostname = window.location.hostname.toLowerCase()
+  if (hostname === baseDomain) return null
   const suffix = `.${baseDomain}`
-  if (!hostname.endsWith(suffix)) return null
+  if (!hostname.endsWith(suffix)) return defaultOrganization
   const subdomains = hostname.slice(0, -suffix.length).split('.')
   return subdomains[subdomains.length - 1] || null
 }
