@@ -169,6 +169,33 @@ if ($env:DEFAULT_ORGANIZATION) {
 } else {
     Info '  Para abrir pelo celular, defina DEFAULT_ORGANIZATION (e NGROK_AUTHTOKEN) no .env.'
 }
+$UrlDoCelular = $null
+if ($env:DEFAULT_ORGANIZATION) {
+    if ($UrlPublica) { $UrlDoCelular = $UrlPublica }
+    elseif ($IpLocal) { $UrlDoCelular = "http://${IpLocal}:$FrontendPort" }
+}
+
+function Gerar-QrCode($Endereco) {
+    if (Get-Command qrencode -ErrorAction SilentlyContinue) {
+        return qrencode -t ANSIUTF8 -m 2 $Endereco
+    }
+    $script = 'apk add -q libqrencode-tools >/dev/null 2>&1 && qrencode -t ANSIUTF8 -m 2 $1'
+    return docker run --rm alpine:3 sh -c $script qrencode $Endereco 2>$null
+}
+
+if ($UrlDoCelular) {
+    [Console]::OutputEncoding = [System.Text.Encoding]::UTF8
+    $QrCode = Gerar-QrCode $UrlDoCelular
+    if ($QrCode) {
+        Write-Host ''
+        Info 'Aponte a camera do celular para o QR code:'
+        $QrCode | ForEach-Object { Write-Host $_ }
+    } else {
+        Info "Nao foi possivel gerar o QR code. Abra no celular: $UrlDoCelular"
+    }
+}
+
+Write-Host ''
 Info 'Para ver os logs: docker compose logs -f'
 Info 'Para parar:       stop.bat'
 

@@ -169,6 +169,38 @@ fi
 
 IP_LOCAL="$(hostname -I 2>/dev/null | awk '{print $1}')"
 
+URL_DO_CELULAR=""
+if [ -n "${DEFAULT_ORGANIZATION:-}" ]; then
+    if [ -n "$URL_PUBLICA" ]; then
+        URL_DO_CELULAR="$URL_PUBLICA"
+    elif [ -n "$IP_LOCAL" ]; then
+        URL_DO_CELULAR="http://${IP_LOCAL}:${FRONTEND_PORT}"
+    fi
+fi
+
+QRCODE_IMAGE="alpine:3"
+
+gerar_qrcode() {
+    if command -v qrencode >/dev/null 2>&1; then
+        qrencode -t ANSIUTF8 -m 2 "$1"
+    else
+        "${DOCKER[@]}" run --rm "$QRCODE_IMAGE" sh -c \
+            'apk add -q libqrencode-tools >/dev/null 2>&1 && qrencode -t ANSIUTF8 -m 2 "$1"' qrencode "$1" 2>/dev/null
+    fi
+}
+
+mostrar_qrcode() {
+    local qrcode
+    qrcode="$(gerar_qrcode "$1" || true)"
+    if [ -n "$qrcode" ]; then
+        echo
+        info "Aponte a camera do celular para o QR code:"
+        printf '%s\n' "$qrcode"
+    else
+        info "Nao foi possivel gerar o QR code. Abra no celular: $1"
+    fi
+}
+
 echo
 info "Projeto rodando!"
 info "  Frontend:     $URL"
@@ -185,6 +217,8 @@ if [ -n "${DEFAULT_ORGANIZATION:-}" ]; then
 else
     info "  Para abrir pelo celular, defina DEFAULT_ORGANIZATION (e NGROK_AUTHTOKEN) no .env."
 fi
+[ -n "$URL_DO_CELULAR" ] && mostrar_qrcode "$URL_DO_CELULAR"
+echo
 info "Para ver os logs: ${COMPOSE[*]} logs -f"
 info "Para parar:       ./stop.sh"
 
