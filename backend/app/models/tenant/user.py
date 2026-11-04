@@ -1,6 +1,7 @@
+from datetime import datetime
 from enum import StrEnum
 
-from sqlalchemy import String
+from sqlalchemy import DateTime, String
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.core.tenant_database import TenantBase
@@ -26,3 +27,4 @@ class User(TimestampColumns, TenantBase):
     city: Mapped[str | None] = mapped_column(String(100))
     state: Mapped[str | None] = mapped_column(String(2))
     password_hash: Mapped[str] = mapped_column(String(255))
+    consultation_history_consented_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))

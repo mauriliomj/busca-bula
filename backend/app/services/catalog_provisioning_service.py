@@ -10,7 +10,7 @@ from app.core.database_administration import DatabaseAdministrator
 from app.core.database_migrations import upgrade_catalog_database
 from app.core.settings import get_settings
 
-VECTOR_EXTENSION = "vector"
+CATALOG_EXTENSIONS = ("vector", "pg_trgm")
 
 
 class CatalogProvisioningService:
@@ -26,7 +26,8 @@ class CatalogProvisioningService:
         if not self.database_administrator.database_exists(database_name):
             self.database_administrator.create_database(database_name, owner=writer_role)
             self.database_administrator.revoke_public_access(database_name)
-        self.database_administrator.create_extension(database_name, VECTOR_EXTENSION)
+        for extension_name in CATALOG_EXTENSIONS:
+            self.database_administrator.create_extension(database_name, extension_name)
         upgrade_catalog_database()
         self.grant_read_only_access(database_name, writer_role, reader_role)
 

@@ -94,3 +94,18 @@ class LogoNotFoundError(DomainError):
 class CatalogImportAlreadyRunningError(DomainError):
     status_code = 409
     message = "Já existe uma sincronização do catálogo em andamento."
+
+
+class SearchCriteriaRequiredError(DomainError):
+    status_code = 400
+    message = "Informe um termo de busca ou uma classe terapêutica."
+
+
+class MedicineNotFoundError(DomainError):
+    status_code = 404
+    message = "Medicamento não encontrado."
+
+
+class ConsultationNotFoundError(DomainError):
+    status_code = 404
+    message = "Consulta não encontrada no seu histórico."

@@ -9,15 +9,27 @@ from fastapi.testclient import TestClient
 from sqlalchemy import text
 
 from app.core.catalog_credentials import build_catalog_reader_role_name, build_catalog_writer_role_name
-from app.core.catalog_database import dispose_catalog_engines, get_catalog_writer_engine
+from app.core.catalog_database import (
+    dispose_catalog_engines,
+    get_catalog_writer_engine,
+    open_catalog_writer_session,
+)
 from app.core.database_administration import DatabaseAdministrator
 from app.core.database_migrations import upgrade_platform_database
 from app.core.platform_database import get_platform_engine, open_platform_session
 from app.core.settings import get_settings
 from app.core.tenant_database import tenant_engine_registry
+from app.etl.catalog_loader import replace_catalog_rows
+from app.etl.leaflet_index_parser import parse_leaflet_index
+from app.etl.medicine_catalog_parser import parse_medicine_catalog
+from app.etl.price_table_parser import parse_price_table
 from app.main import app
+from app.models.catalog.leaflet import Leaflet
+from app.models.catalog.medicine import Medicine
+from app.models.catalog.medicine_presentation import MedicinePresentation
 from app.services.catalog_provisioning_service import CatalogProvisioningService
 from app.services.platform_admin_auth_service import PlatformAdminAuthService
+from tests.catalog_samples import write_leaflet_index, write_medicine_catalog, write_price_table
 
 PLATFORM_ADMIN_EMAIL = "admin@buscabula.com.br"
 PLATFORM_ADMIN_PASSWORD = "senha-admin-123"
@@ -72,6 +84,31 @@ def clean_catalog(catalog_database):
         connection.execute(
             text("TRUNCATE medicines, leaflets, medicine_presentations, catalog_imports RESTART IDENTITY")
         )
+
+
+INACTIVE_MEDICINE = {
+    "registration_number": "155550001",
+    "product_name": "DIPIRONA ANTIGA",
+    "active_ingredient": "dipirona",
+    "therapeutic_class": "ANALGESICOS",
+    "regulatory_category": "Similar",
+    "holder_cnpj": None,
+    "holder_name": "FARMA ANTIGA",
+    "process_number": None,
+    "is_active": False,
+    "registration_expires_on": None,
+    "process_finished_on": None,
+}
+
+
+@pytest.fixture
+def seeded_catalog(clean_catalog, tmp_path):
+    medicines = parse_medicine_catalog(write_medicine_catalog(tmp_path)).records + [INACTIVE_MEDICINE]
+    with open_catalog_writer_session() as session:
+        replace_catalog_rows(session, Medicine, medicines)
+        replace_catalog_rows(session, Leaflet, parse_leaflet_index(write_leaflet_index(tmp_path)).records)
+        replace_catalog_rows(session, MedicinePresentation, parse_price_table(write_price_table(tmp_path)).records)
+        session.commit()
 
 
 @pytest.fixture(autouse=True)
