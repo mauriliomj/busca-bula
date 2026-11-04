@@ -1,6 +1,3 @@
-# Sobe o projeto (banco, backend e frontend) com Docker no Windows.
-# Se o Docker Desktop nao estiver instalado, o script instala via winget.
-
 $Raiz = Split-Path -Parent $PSScriptRoot
 Set-Location $Raiz
 
@@ -12,6 +9,8 @@ if (Test-Path '.env') {
 
 $FrontendPort = if ($env:FRONTEND_PORT) { $env:FRONTEND_PORT } else { '5173' }
 $BackendPort = if ($env:BACKEND_PORT) { $env:BACKEND_PORT } else { '8000' }
+$NgrokInspectorPort = if ($env:NGROK_INSPECTOR_PORT) { $env:NGROK_INSPECTOR_PORT } else { '4040' }
+$PerfilDoTunel = if ($env:NGROK_AUTHTOKEN) { @('--profile', 'tunnel') } else { @() }
 
 function Info($msg) { Write-Host "[busca-bula] $msg" -ForegroundColor Cyan }
 function Erro($msg) { Write-Host "[busca-bula] $msg" -ForegroundColor Red; exit 1 }
@@ -74,9 +73,6 @@ if (-not (Docker-Instalado)) { Instalar-Docker }
 if (-not (Docker-Instalado)) { Erro 'Docker nao encontrado mesmo apos a instalacao. Reinicie o computador e rode o start.bat de novo.' }
 Iniciar-Docker
 
-# Hash dos arquivos que definem as dependencias de cada imagem.
-# A imagem so e reconstruida quando nao existe ou quando esse hash muda,
-# assim nada e baixado de novo a cada execucao.
 function Hash-Arquivos([string[]]$Arquivos) {
     $bytes = New-Object System.Collections.Generic.List[byte]
     foreach ($a in $Arquivos) { $bytes.AddRange([System.IO.File]::ReadAllBytes((Join-Path $Raiz $a))) }
@@ -99,12 +95,11 @@ $Build = @()
 if (Precisa-Build 'busca-bula-backend' $env:BACKEND_DEPS_HASH) { $Build += 'backend' }
 if (Precisa-Build 'busca-bula-frontend' $env:FRONTEND_DEPS_HASH) { $Build += 'frontend' }
 
-$UpArgs = @('compose', 'up', '-d')
+$UpArgs = @('compose') + $PerfilDoTunel + @('up', '-d')
 if ($Build.Count -gt 0) {
     Info "Construindo as imagens: $($Build -join ', ') (a primeira vez demora alguns minutos)..."
     docker compose build @Build
     if ($LASTEXITCODE -ne 0) { Erro 'Falha ao construir as imagens.' }
-    # node_modules fica em volume anonimo; renova para pegar o da imagem nova
     $UpArgs += '--renew-anon-volumes'
 } else {
     Info 'Imagens ja estao atualizadas, nada para instalar.'
@@ -115,21 +110,92 @@ Info 'Subindo os containers...'
 if ($LASTEXITCODE -ne 0) { Erro 'Falha ao subir os containers.' }
 
 $Url = "http://localhost:$FrontendPort"
+$ApiUrl = "http://localhost:$BackendPort"
+
+function Aguardar-Resposta($Endereco, $Tentativas) {
+    for ($i = 0; $i -lt $Tentativas; $i++) {
+        try {
+            Invoke-WebRequest -Uri $Endereco -UseBasicParsing -TimeoutSec 2 | Out-Null
+            return $true
+        } catch {
+            Start-Sleep -Seconds 2
+        }
+    }
+    return $false
+}
+
+Info 'Aguardando o backend atualizar os bancos e responder...'
+if (-not (Aguardar-Resposta "$ApiUrl/api/health" 90)) {
+    Info 'O backend ainda nao respondeu. Veja os logs com: docker compose logs -f backend'
+}
 Info 'Aguardando o frontend responder...'
-for ($i = 0; $i -lt 60; $i++) {
+Aguardar-Resposta $Url 60 | Out-Null
+
+function Ler-UrlDoNgrok {
     try {
-        Invoke-WebRequest -Uri $Url -UseBasicParsing -TimeoutSec 2 | Out-Null
-        break
+        $tuneis = Invoke-RestMethod -Uri "http://127.0.0.1:$NgrokInspectorPort/api/tunnels" -TimeoutSec 2
+        return ($tuneis.tunnels | Where-Object { $_.public_url -like 'https://*' } | Select-Object -First 1).public_url
     } catch {
-        Start-Sleep -Seconds 2
+        return $null
+    }
+}
+
+$UrlPublica = $null
+if ($env:NGROK_AUTHTOKEN) {
+    Info 'Aguardando o tunel do ngrok...'
+    for ($i = 0; $i -lt 30 -and -not $UrlPublica; $i++) {
+        $UrlPublica = Ler-UrlDoNgrok
+        if (-not $UrlPublica) { Start-Sleep -Seconds 2 }
+    }
+}
+
+$IpLocal = (Get-NetIPConfiguration -ErrorAction SilentlyContinue |
+    Where-Object { $_.IPv4DefaultGateway } |
+    Select-Object -First 1).IPv4Address.IPAddress
+
+Write-Host ''
+Info 'Projeto rodando!'
+Info "  Frontend:     $Url"
+Info "  Backend:      $ApiUrl"
+Info "  Docs da API:  $ApiUrl/docs"
+Info "  Organizacoes: http://<subdominio>.localhost:$FrontendPort"
+if ($env:DEFAULT_ORGANIZATION) {
+    if ($IpLocal) { Info "  Rede local:   http://${IpLocal}:$FrontendPort (organizacao $($env:DEFAULT_ORGANIZATION), sem instalar o app)" }
+    if ($UrlPublica) {
+        Info "  Celular:      $UrlPublica (HTTPS, permite instalar o app)"
+    } elseif ($env:NGROK_AUTHTOKEN) {
+        Info '  O tunel do ngrok nao respondeu. Veja os logs com: docker compose logs -f ngrok'
+    }
+} else {
+    Info '  Para abrir pelo celular, defina DEFAULT_ORGANIZATION (e NGROK_AUTHTOKEN) no .env.'
+}
+$UrlDoCelular = $null
+if ($env:DEFAULT_ORGANIZATION) {
+    if ($UrlPublica) { $UrlDoCelular = $UrlPublica }
+    elseif ($IpLocal) { $UrlDoCelular = "http://${IpLocal}:$FrontendPort" }
+}
+
+function Gerar-QrCode($Endereco) {
+    if (Get-Command qrencode -ErrorAction SilentlyContinue) {
+        return qrencode -t ANSIUTF8 -m 2 $Endereco
+    }
+    $script = 'apk add -q libqrencode-tools >/dev/null 2>&1 && qrencode -t ANSIUTF8 -m 2 $1'
+    return docker run --rm alpine:3 sh -c $script qrencode $Endereco 2>$null
+}
+
+if ($UrlDoCelular) {
+    [Console]::OutputEncoding = [System.Text.Encoding]::UTF8
+    $QrCode = Gerar-QrCode $UrlDoCelular
+    if ($QrCode) {
+        Write-Host ''
+        Info 'Aponte a camera do celular para o QR code:'
+        $QrCode | ForEach-Object { Write-Host $_ }
+    } else {
+        Info "Nao foi possivel gerar o QR code. Abra no celular: $UrlDoCelular"
     }
 }
 
 Write-Host ''
-Info 'Projeto rodando!'
-Info "  Frontend: $Url"
-Info "  Backend:  http://localhost:$BackendPort"
-Info "  Admin:    http://localhost:$BackendPort/admin/"
 Info 'Para ver os logs: docker compose logs -f'
 Info 'Para parar:       stop.bat'
 

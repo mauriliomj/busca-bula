@@ -26,15 +26,18 @@ services:
         busca-bula.deps: ${BACKEND_DEPS_HASH:-}
     restart: unless-stopped
     environment:
-      DJANGO_DEBUG: "True"
-      DJANGO_ALLOWED_HOSTS: "*"
-      POSTGRES_HOST: db
-      POSTGRES_PORT: "5432"
-      POSTGRES_DB: ${POSTGRES_DB:-busca_bula}
-      POSTGRES_USER: ${POSTGRES_USER:-busca_bula}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-busca_bula}
+      DATABASE_HOST: db
+      DATABASE_PORT: "5432"
+      DATABASE_ADMIN_USER: ${POSTGRES_USER:-busca_bula}
+      DATABASE_ADMIN_PASSWORD: ${POSTGRES_PASSWORD:-busca_bula}
+      PLATFORM_DATABASE_NAME: ${POSTGRES_DB:-busca_bula}
+      TENANT_DATABASE_SECRET: ${TENANT_DATABASE_SECRET:-dev-tenant-database-secret}
+      JWT_SECRET: ${JWT_SECRET:-dev-jwt-secret}
+      SESSION_COOKIE_SECURE: ${SESSION_COOKIE_SECURE:-false}
+      CATALOG_CACHE_DIR: /var/cache/busca-bula/catalog
     volumes:
       - ./backend:/app
+      - catalog_cache:/var/cache/busca-bula
     ports:
       - "${BACKEND_PORT:-8000}:8000"
     depends_on:
@@ -50,6 +53,10 @@ services:
     restart: unless-stopped
     environment:
       VITE_USE_POLLING: "true"
+      VITE_API_TARGET: http://backend:8000
+      VITE_BASE_DOMAIN: ${BASE_DOMAIN:-localhost}
+      VITE_DEFAULT_ORGANIZATION: ${DEFAULT_ORGANIZATION:-}
+      VITE_DEVTOOLS: ${VITE_DEVTOOLS:-false}
     volumes:
       - ./frontend/busca-bula:/app
       - /app/node_modules
@@ -58,5 +65,19 @@ services:
     depends_on:
       - backend
 
+  ngrok:
+    image: ngrok/ngrok:latest
+    pull_policy: missing
+    profiles: [tunnel]
+    restart: unless-stopped
+    environment:
+      NGROK_AUTHTOKEN: ${NGROK_AUTHTOKEN:-}
+    command: http frontend:5173 --log stdout ${NGROK_DOMAIN:+--url=${NGROK_DOMAIN}}
+    ports:
+      - "127.0.0.1:${NGROK_INSPECTOR_PORT:-4040}:4040"
+    depends_on:
+      - frontend
+
 volumes:
   db_data:
+  catalog_cache:

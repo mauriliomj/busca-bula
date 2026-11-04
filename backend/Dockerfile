@@ -14,4 +14,4 @@ COPY . .
 
 EXPOSE 8000
 
-CMD ["sh", "-c", "python manage.py migrate && python manage.py runserver 0.0.0.0:8000"]
+CMD ["sh", "-c", "python -m app.commands.migrate_all_databases && uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload"]

@@ -1,0 +1,73 @@
+from pathlib import Path
+
+import pandas as pd
+
+MEDICINE_CATALOG_SAMPLE = (
+    "TIPO_PRODUTO;NOME_PRODUTO;DATA_FINALIZACAO_PROCESSO;CATEGORIA_REGULATORIA;NUMERO_REGISTRO_PRODUTO;"
+    "DATA_VENCIMENTO_REGISTRO;NUMERO_PROCESSO;CLASSE_TERAPEUTICA;EMPRESA_DETENTORA_REGISTRO;SITUACAO_REGISTRO;PRINCIPIO_ATIVO\n"
+    '"MEDICAMENTO";"DIPIRONA MONOIDRATADA";"10/01/2010";"Genérico";100430001;"012030";"25351000000201011";'
+    '"ANALGESICOS";"11111111000111 - FARMA UM LTDA";"Inativo";"DIPIRONA MONOIDRATADA"\n'
+    '"MEDICAMENTO";"DIPIRONA MONOIDRATADA";"15/03/2020";"Genérico";100430001;"032030";"25351000000201011";'
+    '"ANALGESICOS";"11111111000111 - FARMA UM LTDA";"Ativo";"DIPIRONA MONOIDRATADA"\n'
+    '"MEDICAMENTO";"LOSARTANA";"20/05/2018";"FITOTER?PICO";12345678;"052028";"25351000000201899";'
+    '"ANTI-HIPERTENSIVOS";"22222222000122 - FARMA DOIS S.A.";"Ativo";"losartana potássica"\n'
+    '"MEDICAMENTO";"VASELINA";"18/08/2008";"BAIXO RISCO";;;;;"33333333000133 - FARMA TRES";"Inativo";\n'
+)
+
+LEAFLET_INDEX_SAMPLE = (
+    '599975;"DIPIRONA MONOIDRATADA";"100430001";5;"25351000000201011";"11111111000111";"FARMA UM LTDA";'
+    '34427123;"1453197257";"11/03/2025 15:09:27";"15973602025";"10/12/2026 00:00:00"\n'
+    '612692;"PRODUTO SEM REGISTRO";"";8;"25351446145200860";"02456955000183";"NATULAB";'
+    '28821227;"1481662228";"04/01/2022 10:55:01";"2992022022";"10/12/2026 00:00:00"\n'
+)
+
+PRICE_TABLE_SAMPLE = (
+    "SUBSTÂNCIA;CNPJ;LABORATÓRIO;CÓDIGO GGREM;REGISTRO;EAN 1;EAN 2;EAN 3;PRODUTO;APRESENTAÇÃO;"
+    "CLASSE TERAPÊUTICA;TIPO DE PRODUTO (STATUS DO PRODUTO);REGIME DE PREÇO;PF Sem Impostos;PF 0%;PF 18 %;"
+    "PF 18 %  ALC;PMC Sem Impostos;PMC 0 %;PMC 18 %;PMC 18 %  ALC;RESTRIÇÃO HOSPITALAR;TARJA;"
+    "COMERCIALIZAÇÃO 2025;DESTINAÇÃO COMERCIAL \r\n"
+    "DIPIRONA MONOIDRATADA;11.111.111/0001-11;FARMA UM LTDA;538912020009303;1004300010017;7891106000956;"
+    "    -     ;    -     ;DIPIRONA MONOIDRATADA;500 MG COM CT BL AL X 10;N2B - ANALGESICOS;Genérico;Regulado;"
+    "1.027,44;1.030,73;1.037,48;1.033,46;8,90;9,10;12,30;12,10;Não;Sem Tarja;Sim;Comercial\r\n"
+    "PRODUTO HOSPITALAR;22.222.222/0001-22;FARMA DOIS S.A.;538912020009400;1234567800011;;;;"
+    "SORO;100 ML SOL INJ;K1A - SOLUCOES;Similar;Liberado;"
+    "3,50;3,60;4,10;4,05;;;;;Sim;Tarja Vermelha;Não;Hospitalar\r\n"
+)
+
+
+def write_medicine_catalog(directory: Path) -> Path:
+    path = directory / "DADOS_ABERTOS_MEDICAMENTOS.csv"
+    path.write_bytes(MEDICINE_CATALOG_SAMPLE.encode("latin-1"))
+    return path
+
+
+def write_leaflet_index(directory: Path) -> Path:
+    path = directory / "TA_CONSULTA_BULA_PRODUTO.CSV"
+    path.write_bytes(LEAFLET_INDEX_SAMPLE.encode("latin-1"))
+    return path
+
+
+def write_price_table(directory: Path) -> Path:
+    path = directory / "TA_PRECO_MEDICAMENTO.csv"
+    path.write_bytes(PRICE_TABLE_SAMPLE.encode("utf-8-sig"))
+    return path
+
+
+CHATBULARIO_ROWS = [
+    {"registro": "100430001", "nome_produto": "DIPIRONA MONOIDRATADA", "expediente": "0000000001", "secao_id": 1,
+     "resposta": "Indicado como analgésico\x00 e antitérmico."},
+    {"registro": "100430001", "nome_produto": "DIPIRONA MONOIDRATADA", "expediente": "0000000001", "secao_id": 6,
+     "resposta": "Adultos: 1 comprimido até 4 vezes ao dia.   \r\nNão exceda a dose."},
+    {"registro": "100430001", "nome_produto": "DIPIRONA MONOIDRATADA", "expediente": "0000000001", "secao_id": 9,
+     "resposta": "Procure socorro médico.\nIII -"},
+    {"registro": "100430001", "nome_produto": "DIPIRONA MONOIDRATADA", "expediente": "0000000001", "secao_id": 8,
+     "resposta": ""},
+    {"registro": "12345678", "nome_produto": "LOSARTANA", "expediente": "0000000002", "secao_id": 1,
+     "resposta": "Indicado para hipertensão."},
+]
+
+
+def write_chatbulario_dataset(directory: Path) -> Path:
+    path = directory / "chatbulario_train.parquet"
+    pd.DataFrame(CHATBULARIO_ROWS).to_parquet(path, index=False)
+    return path

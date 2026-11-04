@@ -1,6 +1,4 @@
 #!/usr/bin/env bash
-# Sobe o projeto (banco, backend e frontend) com Docker.
-# Se o Docker nao estiver instalado, o script instala automaticamente.
 
 set -euo pipefail
 cd "$(dirname "$0")"
@@ -11,6 +9,7 @@ fi
 
 FRONTEND_PORT="${FRONTEND_PORT:-5173}"
 BACKEND_PORT="${BACKEND_PORT:-8000}"
+NGROK_INSPECTOR_PORT="${NGROK_INSPECTOR_PORT:-4040}"
 
 info() { printf '\033[1;36m[busca-bula]\033[0m %s\n' "$*"; }
 erro() { printf '\033[1;31m[busca-bula]\033[0m %s\n' "$*" >&2; exit 1; }
@@ -71,7 +70,6 @@ iniciar_servico_docker() {
 
 command -v docker >/dev/null 2>&1 || instalar_docker
 
-# Descobre se da para usar o docker direto ou se precisa de sudo
 DOCKER=()
 for tentativa in 1 2; do
     if docker info >/dev/null 2>&1; then
@@ -86,7 +84,6 @@ for tentativa in 1 2; do
 done
 [ ${#DOCKER[@]} -gt 0 ] || erro "Nao foi possivel conectar ao Docker. Verifique se o servico esta rodando."
 
-# Docker Compose (plugin novo ou docker-compose antigo)
 if ! "${DOCKER[@]}" compose version >/dev/null 2>&1 && ! command -v docker-compose >/dev/null 2>&1; then
     info "Docker Compose nao encontrado. Instalando..."
     instalar_pacotes docker-compose-plugin || instalar_pacotes docker-compose \
@@ -101,9 +98,6 @@ else
     COMPOSE=(docker-compose)
 fi
 
-# Hash dos arquivos que definem as dependencias de cada imagem.
-# A imagem so e reconstruida quando nao existe ou quando esse hash muda,
-# assim nada e baixado de novo a cada execucao.
 hash_arquivos() {
     cat "$@" | { sha256sum 2>/dev/null || shasum -a 256; } | cut -d' ' -f1
 }
@@ -122,11 +116,14 @@ BUILD=()
 precisa_build busca-bula-backend "$BACKEND_DEPS_HASH" && BUILD+=(backend)
 precisa_build busca-bula-frontend "$FRONTEND_DEPS_HASH" && BUILD+=(frontend)
 
+if [ -n "${NGROK_AUTHTOKEN:-}" ]; then
+    COMPOSE+=(--profile tunnel)
+fi
+
 UP_ARGS=(up -d)
 if [ ${#BUILD[@]} -gt 0 ]; then
     info "Construindo as imagens: ${BUILD[*]} (a primeira vez demora alguns minutos)..."
     "${COMPOSE[@]}" build "${BUILD[@]}"
-    # node_modules fica em volume anonimo; renova para pegar o da imagem nova
     UP_ARGS+=(--renew-anon-volumes)
 else
     info "Imagens ja estao atualizadas, nada para instalar."
@@ -136,19 +133,92 @@ info "Subindo os containers..."
 "${COMPOSE[@]}" "${UP_ARGS[@]}"
 
 URL="http://localhost:${FRONTEND_PORT}"
+API_URL="http://localhost:${BACKEND_PORT}"
+
+aguardar_resposta() {
+    local endereco="$1" tentativas="$2"
+    for _ in $(seq 1 "$tentativas"); do
+        curl -sf -o /dev/null "$endereco" && return 0
+        sleep 2
+    done
+    return 1
+}
+
 if command -v curl >/dev/null 2>&1; then
+    info "Aguardando o backend atualizar os bancos e responder..."
+    aguardar_resposta "${API_URL}/api/health" 90 \
+        || info "O backend ainda nao respondeu. Veja os logs com: ${COMPOSE[*]} logs -f backend"
     info "Aguardando o frontend responder..."
-    for _ in $(seq 1 60); do
-        curl -s -o /dev/null "$URL" && break
+    aguardar_resposta "$URL" 60 || true
+fi
+
+ler_url_do_ngrok() {
+    curl -sf "http://127.0.0.1:${NGROK_INSPECTOR_PORT}/api/tunnels" 2>/dev/null \
+        | grep -o '"public_url":"https://[^"]*"' | head -n 1 | cut -d'"' -f4
+}
+
+URL_PUBLICA=""
+if [ -n "${NGROK_AUTHTOKEN:-}" ] && command -v curl >/dev/null 2>&1; then
+    info "Aguardando o tunel do ngrok..."
+    for _ in $(seq 1 30); do
+        URL_PUBLICA="$(ler_url_do_ngrok)"
+        [ -n "$URL_PUBLICA" ] && break
         sleep 2
     done
 fi
 
+IP_LOCAL="$(hostname -I 2>/dev/null | awk '{print $1}')"
+
+URL_DO_CELULAR=""
+if [ -n "${DEFAULT_ORGANIZATION:-}" ]; then
+    if [ -n "$URL_PUBLICA" ]; then
+        URL_DO_CELULAR="$URL_PUBLICA"
+    elif [ -n "$IP_LOCAL" ]; then
+        URL_DO_CELULAR="http://${IP_LOCAL}:${FRONTEND_PORT}"
+    fi
+fi
+
+QRCODE_IMAGE="alpine:3"
+
+gerar_qrcode() {
+    if command -v qrencode >/dev/null 2>&1; then
+        qrencode -t ANSIUTF8 -m 2 "$1"
+    else
+        "${DOCKER[@]}" run --rm "$QRCODE_IMAGE" sh -c \
+            'apk add -q libqrencode-tools >/dev/null 2>&1 && qrencode -t ANSIUTF8 -m 2 "$1"' qrencode "$1" 2>/dev/null
+    fi
+}
+
+mostrar_qrcode() {
+    local qrcode
+    qrcode="$(gerar_qrcode "$1" || true)"
+    if [ -n "$qrcode" ]; then
+        echo
+        info "Aponte a camera do celular para o QR code:"
+        printf '%s\n' "$qrcode"
+    else
+        info "Nao foi possivel gerar o QR code. Abra no celular: $1"
+    fi
+}
+
 echo
 info "Projeto rodando!"
-info "  Frontend: $URL"
-info "  Backend:  http://localhost:${BACKEND_PORT}"
-info "  Admin:    http://localhost:${BACKEND_PORT}/admin/"
+info "  Frontend:     $URL"
+info "  Backend:      ${API_URL}"
+info "  Docs da API:  ${API_URL}/docs"
+info "  Organizacoes: http://<subdominio>.localhost:${FRONTEND_PORT}"
+if [ -n "${DEFAULT_ORGANIZATION:-}" ]; then
+    [ -n "$IP_LOCAL" ] && info "  Rede local:   http://${IP_LOCAL}:${FRONTEND_PORT} (organizacao ${DEFAULT_ORGANIZATION}, sem instalar o app)"
+    if [ -n "$URL_PUBLICA" ]; then
+        info "  Celular:      ${URL_PUBLICA} (HTTPS, permite instalar o app)"
+    elif [ -n "${NGROK_AUTHTOKEN:-}" ]; then
+        info "  O tunel do ngrok nao respondeu. Veja os logs com: ${COMPOSE[*]} logs -f ngrok"
+    fi
+else
+    info "  Para abrir pelo celular, defina DEFAULT_ORGANIZATION (e NGROK_AUTHTOKEN) no .env."
+fi
+[ -n "$URL_DO_CELULAR" ] && mostrar_qrcode "$URL_DO_CELULAR"
+echo
 info "Para ver os logs: ${COMPOSE[*]} logs -f"
 info "Para parar:       ./stop.sh"
 
