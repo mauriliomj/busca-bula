@@ -1,6 +1,4 @@
 #!/usr/bin/env bash
-# Sobe o projeto (banco, backend e frontend) com Docker.
-# Se o Docker nao estiver instalado, o script instala automaticamente.
 
 set -euo pipefail
 cd "$(dirname "$0")"
@@ -71,7 +69,6 @@ iniciar_servico_docker() {
 
 command -v docker >/dev/null 2>&1 || instalar_docker
 
-# Descobre se da para usar o docker direto ou se precisa de sudo
 DOCKER=()
 for tentativa in 1 2; do
     if docker info >/dev/null 2>&1; then
@@ -86,7 +83,6 @@ for tentativa in 1 2; do
 done
 [ ${#DOCKER[@]} -gt 0 ] || erro "Nao foi possivel conectar ao Docker. Verifique se o servico esta rodando."
 
-# Docker Compose (plugin novo ou docker-compose antigo)
 if ! "${DOCKER[@]}" compose version >/dev/null 2>&1 && ! command -v docker-compose >/dev/null 2>&1; then
     info "Docker Compose nao encontrado. Instalando..."
     instalar_pacotes docker-compose-plugin || instalar_pacotes docker-compose \
@@ -101,9 +97,6 @@ else
     COMPOSE=(docker-compose)
 fi
 
-# Hash dos arquivos que definem as dependencias de cada imagem.
-# A imagem so e reconstruida quando nao existe ou quando esse hash muda,
-# assim nada e baixado de novo a cada execucao.
 hash_arquivos() {
     cat "$@" | { sha256sum 2>/dev/null || shasum -a 256; } | cut -d' ' -f1
 }
@@ -126,7 +119,6 @@ UP_ARGS=(up -d)
 if [ ${#BUILD[@]} -gt 0 ]; then
     info "Construindo as imagens: ${BUILD[*]} (a primeira vez demora alguns minutos)..."
     "${COMPOSE[@]}" build "${BUILD[@]}"
-    # node_modules fica em volume anonimo; renova para pegar o da imagem nova
     UP_ARGS+=(--renew-anon-volumes)
 else
     info "Imagens ja estao atualizadas, nada para instalar."
@@ -136,19 +128,31 @@ info "Subindo os containers..."
 "${COMPOSE[@]}" "${UP_ARGS[@]}"
 
 URL="http://localhost:${FRONTEND_PORT}"
-if command -v curl >/dev/null 2>&1; then
-    info "Aguardando o frontend responder..."
-    for _ in $(seq 1 60); do
-        curl -s -o /dev/null "$URL" && break
+API_URL="http://localhost:${BACKEND_PORT}"
+
+aguardar_resposta() {
+    local endereco="$1" tentativas="$2"
+    for _ in $(seq 1 "$tentativas"); do
+        curl -sf -o /dev/null "$endereco" && return 0
         sleep 2
     done
+    return 1
+}
+
+if command -v curl >/dev/null 2>&1; then
+    info "Aguardando o backend atualizar os bancos e responder..."
+    aguardar_resposta "${API_URL}/api/health" 90 \
+        || info "O backend ainda nao respondeu. Veja os logs com: ${COMPOSE[*]} logs -f backend"
+    info "Aguardando o frontend responder..."
+    aguardar_resposta "$URL" 60 || true
 fi
 
 echo
 info "Projeto rodando!"
-info "  Frontend: $URL"
-info "  Backend:  http://localhost:${BACKEND_PORT}"
-info "  Admin:    http://localhost:${BACKEND_PORT}/admin/"
+info "  Frontend:     $URL"
+info "  Backend:      ${API_URL}"
+info "  Docs da API:  ${API_URL}/docs"
+info "  Organizacoes: http://<subdominio>.localhost:${FRONTEND_PORT}"
 info "Para ver os logs: ${COMPOSE[*]} logs -f"
 info "Para parar:       ./stop.sh"
 

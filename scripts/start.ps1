@@ -1,6 +1,3 @@
-# Sobe o projeto (banco, backend e frontend) com Docker no Windows.
-# Se o Docker Desktop nao estiver instalado, o script instala via winget.
-
 $Raiz = Split-Path -Parent $PSScriptRoot
 Set-Location $Raiz
 
@@ -74,9 +71,6 @@ if (-not (Docker-Instalado)) { Instalar-Docker }
 if (-not (Docker-Instalado)) { Erro 'Docker nao encontrado mesmo apos a instalacao. Reinicie o computador e rode o start.bat de novo.' }
 Iniciar-Docker
 
-# Hash dos arquivos que definem as dependencias de cada imagem.
-# A imagem so e reconstruida quando nao existe ou quando esse hash muda,
-# assim nada e baixado de novo a cada execucao.
 function Hash-Arquivos([string[]]$Arquivos) {
     $bytes = New-Object System.Collections.Generic.List[byte]
     foreach ($a in $Arquivos) { $bytes.AddRange([System.IO.File]::ReadAllBytes((Join-Path $Raiz $a))) }
@@ -104,7 +98,6 @@ if ($Build.Count -gt 0) {
     Info "Construindo as imagens: $($Build -join ', ') (a primeira vez demora alguns minutos)..."
     docker compose build @Build
     if ($LASTEXITCODE -ne 0) { Erro 'Falha ao construir as imagens.' }
-    # node_modules fica em volume anonimo; renova para pegar o da imagem nova
     $UpArgs += '--renew-anon-volumes'
 } else {
     Info 'Imagens ja estao atualizadas, nada para instalar.'
@@ -115,21 +108,33 @@ Info 'Subindo os containers...'
 if ($LASTEXITCODE -ne 0) { Erro 'Falha ao subir os containers.' }
 
 $Url = "http://localhost:$FrontendPort"
-Info 'Aguardando o frontend responder...'
-for ($i = 0; $i -lt 60; $i++) {
-    try {
-        Invoke-WebRequest -Uri $Url -UseBasicParsing -TimeoutSec 2 | Out-Null
-        break
-    } catch {
-        Start-Sleep -Seconds 2
+$ApiUrl = "http://localhost:$BackendPort"
+
+function Aguardar-Resposta($Endereco, $Tentativas) {
+    for ($i = 0; $i -lt $Tentativas; $i++) {
+        try {
+            Invoke-WebRequest -Uri $Endereco -UseBasicParsing -TimeoutSec 2 | Out-Null
+            return $true
+        } catch {
+            Start-Sleep -Seconds 2
+        }
     }
+    return $false
 }
+
+Info 'Aguardando o backend atualizar os bancos e responder...'
+if (-not (Aguardar-Resposta "$ApiUrl/api/health" 90)) {
+    Info 'O backend ainda nao respondeu. Veja os logs com: docker compose logs -f backend'
+}
+Info 'Aguardando o frontend responder...'
+Aguardar-Resposta $Url 60 | Out-Null
 
 Write-Host ''
 Info 'Projeto rodando!'
-Info "  Frontend: $Url"
-Info "  Backend:  http://localhost:$BackendPort"
-Info "  Admin:    http://localhost:$BackendPort/admin/"
+Info "  Frontend:     $Url"
+Info "  Backend:      $ApiUrl"
+Info "  Docs da API:  $ApiUrl/docs"
+Info "  Organizacoes: http://<subdominio>.localhost:$FrontendPort"
 Info 'Para ver os logs: docker compose logs -f'
 Info 'Para parar:       stop.bat'
 

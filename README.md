@@ -1,6 +1,8 @@
 # Busca Bula
 
-Projeto com backend em Django (Django REST Framework), frontend em Vue 3 + Vite e banco PostgreSQL com a extensão pgvector. Tudo roda dentro de containers Docker.
+Projeto com backend em FastAPI (SQLAlchemy + Alembic), frontend em Vue 3 + Vite e banco PostgreSQL com a extensão pgvector. Tudo roda dentro de containers Docker.
+
+O Busca Bula é multitenant: cada organização (farmácia, plano de saúde) acessa o app pelo seu próprio subdomínio e tem um banco de dados exclusivo.
 
 ## Requisitos
 
@@ -44,8 +46,8 @@ Para parar, dê dois cliques em **`stop.bat`**.
 1. Verifica se o Docker está instalado e instala caso não esteja.
 2. Inicia o serviço do Docker (ou abre o Docker Desktop no Windows) e espera ele ficar pronto.
 3. Constrói as imagens do backend e do frontend **somente se ainda não existirem ou se as dependências mudaram** (`Dockerfile`, `requirements.txt`, `package.json` ou `package-lock.json`).
-4. Sobe os containers (`docker compose up -d`).
-5. Espera o frontend responder e abre o navegador.
+4. Sobe os containers (`docker compose up -d`). Ao iniciar, o backend aplica as migrations do banco da plataforma e de todas as organizações.
+5. Espera o backend e o frontend responderem e abre o navegador.
 
 A primeira execução demora alguns minutos e precisa de internet, porque as imagens são baixadas e as dependências instaladas. Nas próximas nada é baixado de novo: o script detecta o que já está instalado e só sobe os containers.
 
@@ -64,13 +66,40 @@ stop.bat --limpar         # Windows
 
 Com o projeto rodando:
 
-| Serviço        | Endereço                      |
-| -------------- | ----------------------------- |
-| Frontend       | http://localhost:5173         |
-| Backend (API)  | http://localhost:8000         |
-| Admin Django   | http://localhost:8000/admin/  |
+| Serviço                    | Endereço                                  |
+| -------------------------- | ----------------------------------------- |
+| Painel da plataforma       | http://localhost:5173/login               |
+| App de uma organização     | http://&lt;subdominio&gt;.localhost:5173/login |
+| Backend (API)              | http://localhost:8000                     |
+| Documentação da API        | http://localhost:8000/docs                |
 
 O banco PostgreSQL fica acessível apenas entre os containers.
+
+## Primeiro acesso
+
+1. Crie o administrador da plataforma:
+
+   ```bash
+   docker compose exec backend python -m app.commands.create_platform_admin --name "Seu Nome" --email voce@email.com
+   ```
+
+   A senha é pedida no terminal (mínimo de 8 caracteres).
+
+2. Entre em http://localhost:5173/login com esse e-mail e crie uma organização no painel, por exemplo com o subdomínio `farmaciax`.
+3. Acesse http://farmaciax.localhost:5173/register para cadastrar um usuário dessa organização. O administrador informado na criação da organização também entra por esse endereço.
+
+Os navegadores atuais resolvem qualquer `*.localhost` para a própria máquina, então não é preciso configurar DNS em desenvolvimento.
+
+## Isolamento entre organizações
+
+| Banco                  | Conteúdo                                         | Acesso                                   |
+| ---------------------- | ------------------------------------------------ | ---------------------------------------- |
+| `busca_bula`           | organizações e administradores da plataforma     | backend                                  |
+| `tenant_<subdominio>`  | usuários da organização                          | somente o usuário `tenant_<subdominio>`  |
+
+- Cada organização tem um banco e um usuário PostgreSQL próprios, criados automaticamente pelo painel. O acesso público ao banco é revogado, então o usuário de uma organização não consegue nem se conectar ao banco de outra.
+- A senha do usuário de cada banco é derivada de `TENANT_DATABASE_SECRET` e não fica gravada em lugar nenhum.
+- Os tokens de login são assinados com uma chave diferente por organização: o token de uma organização não é aceito em outra.
 
 ## Comandos úteis
 
@@ -86,12 +115,18 @@ Ver o log de um serviço só (`backend`, `frontend` ou `db`):
 docker compose logs -f backend
 ```
 
-Rodar comandos do Django dentro do container:
+Rodar os testes do backend (usam bancos `test_*` separados, sem tocar nos dados de desenvolvimento):
 
 ```bash
-docker compose exec backend python manage.py createsuperuser
-docker compose exec backend python manage.py makemigrations
-docker compose exec backend python manage.py migrate
+docker compose exec backend pytest
+```
+
+Migrations (Alembic, uma árvore para a plataforma e outra para as organizações):
+
+```bash
+docker compose exec backend python -m app.commands.migrate_all_databases
+docker compose exec backend alembic -n platform revision -m "descricao"
+docker compose exec backend alembic -n tenant revision -m "descricao"
 ```
 
 Instalar um pacote novo no frontend:
@@ -114,17 +149,34 @@ BACKEND_PORT=8000
 POSTGRES_DB=busca_bula
 POSTGRES_USER=busca_bula
 POSTGRES_PASSWORD=busca_bula
+BASE_DOMAIN=localhost
+JWT_SECRET=troque-em-producao
+TENANT_DATABASE_SECRET=troque-em-producao
 ```
+
+`TENANT_DATABASE_SECRET` não pode mudar depois que existirem organizações, porque as senhas dos bancos delas são derivadas dele.
 
 ## Estrutura
 
 ```
 busca-bula/
-├── backend/               # API em Django
-│   ├── config/
+├── backend/               # API em FastAPI (MVC)
+│   ├── app/
+│   │   ├── controllers/   # rotas HTTP
+│   │   ├── services/      # regras de negócio
+│   │   ├── repositories/  # acesso ao banco
+│   │   ├── models/        # tabelas (platform/ e tenant/)
+│   │   ├── schemas/       # validação de entrada e saída
+│   │   ├── dependencies/  # organização atual e autenticação
+│   │   ├── core/          # configuração, bancos e segurança
+│   │   └── commands/      # comandos de linha de comando
+│   ├── migrations/        # platform/ e tenant/
+│   ├── tests/
 │   ├── Dockerfile
 │   └── requirements.txt
-├── frontend/busca-bula/   # Aplicação Vue 3 + Vite
+├── frontend/busca-bula/   # Aplicação Vue 3 + Vite (camada de visão)
+│   ├── src/pages/
+│   ├── src/services/      # comunicação com a API
 │   └── Dockerfile
 ├── docker/postgres/       # Script de inicialização do banco
 ├── scripts/               # Scripts PowerShell usados pelos .bat
