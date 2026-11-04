@@ -74,3 +74,18 @@ class OrganizationAdminRemovalError(DomainError):
 class ActiveOrganizationDeletionError(DomainError):
     status_code = 409
     message = "Desative a organização antes de excluí-la."
+
+
+class UnsupportedLogoError(DomainError):
+    status_code = 415
+    message = "Envie uma imagem PNG, JPG, WEBP ou SVG."
+
+
+class LogoTooLargeError(DomainError):
+    status_code = 413
+    message = "A logo deve ter no máximo 512 KB."
+
+
+class LogoNotFoundError(DomainError):
+    status_code = 404
+    message = "Logo não encontrada."

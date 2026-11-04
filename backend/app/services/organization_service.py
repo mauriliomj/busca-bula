@@ -20,15 +20,19 @@ class OrganizationService:
             raise OrganizationNotFoundError()
         return organization
 
-    def list_organizations(self) -> list[Organization]:
-        return self.organization_repository.list_all()
-
-    def update_organization(self, organization_id: int, request: OrganizationUpdateRequest) -> Organization:
+    def find_provisioned_organization(self, organization_id: int) -> Organization:
         organization = self.organization_repository.find_by_id(organization_id)
         if organization is None:
             raise OrganizationNotFoundError()
         if organization.status == OrganizationStatus.PROVISIONING:
             raise OrganizationStillProvisioningError()
+        return organization
+
+    def list_organizations(self) -> list[Organization]:
+        return self.organization_repository.list_all()
+
+    def update_organization(self, organization_id: int, request: OrganizationUpdateRequest) -> Organization:
+        organization = self.find_provisioned_organization(organization_id)
         if request.name is not None:
             organization.name = request.name
         if request.is_active is not None:

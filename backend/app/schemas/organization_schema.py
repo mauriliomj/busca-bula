@@ -48,7 +48,8 @@ class OrganizationResponse(BaseModel):
 
 
 class PublicOrganizationResponse(BaseModel):
-    model_config = ConfigDict(from_attributes=True)
-
     name: str
     slug: str
+    primary_color: str | None = None
+    secondary_color: str | None = None
+    logo_url: str | None = None

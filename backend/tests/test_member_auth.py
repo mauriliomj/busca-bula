@@ -10,7 +10,8 @@ def test_current_organization_returns_public_data(client, create_organization):
 
     response = client.get("/api/organizations/current", headers=organization_headers("farmaciax"))
 
-    assert response.json() == {"name": "Farmácia X", "slug": "farmaciax"}
+    assert response.json()["name"] == "Farmácia X"
+    assert response.json()["slug"] == "farmaciax"
 
 
 def test_unknown_organization_is_not_found(client):

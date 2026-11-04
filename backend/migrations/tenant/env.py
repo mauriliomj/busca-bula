@@ -4,7 +4,7 @@ from sqlalchemy.pool import NullPool
 
 from app.core.database_urls import build_tenant_database_url
 from app.core.tenant_database import TenantBase
-from app.models.tenant import user
+from app.models.tenant import branding, user
 
 config = context.config
 
