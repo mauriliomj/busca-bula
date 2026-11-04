@@ -1,6 +1,8 @@
 <script setup>
 import { ref } from 'vue'
+import { useCurrentOrganization } from '../services/organization-branding'
 
+const organizacao = useCurrentOrganization()
 const query = ref('')
 
 const navItems = [
@@ -30,7 +32,6 @@ const socials = [
 function search() {
   const term = query.value.trim()
   if (!term) return
-  // TODO: integrar com a API / router (ex.: router.push({ path: '/medicamentos', query: { q: term } }))
   console.log('Buscar:', term)
 }
 
@@ -42,7 +43,6 @@ function useExample(name) {
 
 <template>
   <div class="page">
-    <!-- SVG sprite -->
     <svg width="0" height="0" style="position:absolute" aria-hidden="true">
       <symbol id="i-search" viewBox="0 0 24 24"><circle cx="10.5" cy="10.5" r="6.5" fill="none" stroke="currentColor" stroke-width="2"/><path d="M15.5 15.5 21 21" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></symbol>
       <symbol id="i-arrow" viewBox="0 0 24 24"><path d="M5 12h14m-6-6 6 6-6 6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></symbol>
@@ -58,12 +58,14 @@ function useExample(name) {
       <symbol id="i-logo" viewBox="0 0 48 48"><rect x="14" y="4" width="28" height="36" rx="4" fill="#0f9e94"/><rect x="18" y="8" width="20" height="28" rx="2" fill="#d9f1ee"/><circle cx="20" cy="26" r="11" fill="#fff" stroke="#123a5c" stroke-width="3.5"/><path d="M13 34 5 43" stroke="#123a5c" stroke-width="4.5" stroke-linecap="round"/><path d="M15.5 22h9M15.5 26h9M15.5 30h6" stroke="#0f9e94" stroke-width="2.2" stroke-linecap="round"/></symbol>
     </svg>
 
-    <!-- Header -->
     <header class="header">
       <div class="container header-inner">
         <a href="#" class="logo" aria-label="Busca Bula – início">
-          <svg width="52" height="52"><use href="#i-logo" /></svg>
-          <div>Busca <span>Bula</span></div>
+          <img v-if="organizacao?.logoUrl" :src="organizacao.logoUrl" :alt="organizacao.nome" class="org-logo" />
+          <template v-else>
+            <svg width="52" height="52"><use href="#i-logo" /></svg>
+            <div>Busca <span>Bula</span></div>
+          </template>
         </a>
 
         <nav aria-label="Navegação principal">
@@ -86,7 +88,6 @@ function useExample(name) {
     </header>
 
     <main>
-      <!-- Hero -->
       <section class="hero">
         <div class="container hero-inner">
           <div>
@@ -131,7 +132,6 @@ function useExample(name) {
         </div>
       </section>
 
-      <!-- Diferenciais -->
       <section class="features" aria-label="Diferenciais">
         <div class="container">
           <ul>
@@ -144,7 +144,6 @@ function useExample(name) {
         </div>
       </section>
 
-      <!-- Mais buscados -->
       <section class="top" aria-labelledby="top-title">
         <div class="container">
           <div class="section-head">
@@ -163,7 +162,6 @@ function useExample(name) {
         </div>
       </section>
 
-      <!-- Informação é um cuidado -->
       <section class="info" id="sobre">
         <div class="container">
           <div class="info-box">
@@ -191,7 +189,6 @@ function useExample(name) {
       </section>
     </main>
 
-    <!-- Footer -->
     <footer id="contato">
       <div class="container">
         <div class="footer-grid">
@@ -240,11 +237,11 @@ function useExample(name) {
 
 <style scoped>
 .page {
-  --navy: #123a5c;
+  --navy: var(--brand-secondary, #123a5c);
   --navy-dark: #16384f;
-  --teal: #0f9e94;
-  --teal-dark: #0b857c;
-  --mint: #d9f1ee;
+  --teal: var(--brand-primary, #0f9e94);
+  --teal-dark: var(--brand-primary-dark, #0b857c);
+  --mint: var(--brand-primary-soft, #d9f1ee);
   --bg-soft: #eef7f8;
   --bg-light: #f7fbfc;
   --text: #2b4a63;
@@ -262,10 +259,10 @@ function useExample(name) {
 .page :focus-visible { outline: 3px solid var(--teal); outline-offset: 3px; border-radius: 6px; }
 .container { width: min(1100px, 100% - 48px); margin-inline: auto; }
 
-/* Header */
 .header { background: #fff; position: sticky; top: 0; z-index: 10; box-shadow: 0 1px 0 var(--line); }
 .header-inner { display: flex; align-items: center; justify-content: space-between; height: 74px; gap: 24px; }
 .logo { display: flex; align-items: center; gap: 10px; font-weight: 800; font-size: 1.65rem; color: var(--navy); letter-spacing: -.02em; }
+.org-logo { max-height: 52px; max-width: 220px; object-fit: contain; }
 .logo span { color: var(--teal); }
 nav ul { display: flex; gap: 34px; }
 nav a { font-size: .9rem; font-weight: 500; color: var(--navy); padding: 8px 0; border-bottom: 2px solid transparent; }
@@ -276,7 +273,6 @@ nav a:hover { color: var(--teal); }
 .btn-login { display: inline-flex; align-items: center; gap: 10px; background: var(--navy); color: #fff !important; font-weight: 600; font-size: .88rem; padding: 11px 26px; border-radius: 999px; transition: background .2s; }
 .btn-login:hover { background: #0c2b46; }
 
-/* Hero */
 .hero { background: var(--bg-soft); padding: 56px 0 50px; }
 .hero-inner { display: grid; grid-template-columns: 1.25fr 1fr; gap: 40px; align-items: center; }
 .hero h1 { font-size: clamp(2rem, 4vw, 2.7rem); line-height: 1.12; font-weight: 800; color: var(--navy); letter-spacing: -.03em; margin-bottom: 18px; }
@@ -299,14 +295,12 @@ nav a:hover { color: var(--teal); }
 .hero-art p { font-size: .95rem; max-width: 110px; line-height: 1.6; }
 .hero-art p::after { content: ''; display: block; width: 36px; height: 3px; background: var(--teal); margin-top: 14px; border-radius: 2px; }
 
-/* Features */
 .features { padding: 48px 0 54px; border-bottom: 1px solid var(--line); }
 .features ul { display: grid; grid-template-columns: repeat(4, 1fr); gap: 24px; text-align: center; }
 .feat-icon { width: 56px; height: 56px; border-radius: 50%; background: var(--teal); color: #fff; display: grid; place-items: center; margin: 0 auto 18px; }
 .features h3 { font-size: 1.05rem; color: var(--navy); margin-bottom: 10px; font-weight: 700; }
 .features p { font-size: .85rem; color: var(--muted); max-width: 190px; margin-inline: auto; }
 
-/* Mais buscados */
 .top { background: var(--bg-light); padding: 40px 0 44px; }
 .section-head { display: flex; justify-content: space-between; align-items: center; margin-bottom: 22px; }
 .section-head h2 { font-size: 1.5rem; color: var(--navy); font-weight: 800; letter-spacing: -.02em; }
@@ -321,7 +315,6 @@ nav a:hover { color: var(--teal); }
 .med-info small { font-size: .72rem; color: var(--muted); }
 .med .chev { color: var(--navy); }
 
-/* Info */
 .info { padding: 34px 0 44px; }
 .info-box { background: var(--bg-soft); border-radius: 18px; padding: 34px 40px; display: grid; grid-template-columns: 200px 1fr auto; gap: 36px; align-items: center; }
 .info-box h2 { font-size: 1.35rem; color: var(--navy); font-weight: 800; margin-bottom: 10px; }
@@ -330,7 +323,6 @@ nav a:hover { color: var(--teal); }
 .btn-outline { display: inline-flex; align-items: center; gap: 12px; border: 1.5px solid var(--teal); color: var(--teal) !important; font-weight: 600; font-size: .95rem; padding: 14px 34px; border-radius: 999px; transition: all .2s; }
 .btn-outline:hover { background: var(--teal); color: #fff !important; }
 
-/* Footer */
 footer { background: var(--navy-dark); color: #fff; padding: 36px 0 22px; }
 footer .logo { color: #fff; font-size: 1.35rem; }
 footer .logo span { color: #3cd3c6; }
@@ -348,7 +340,6 @@ footer .logo span { color: #3cd3c6; }
 .socials a:hover { background: var(--teal); }
 .copy { display: flex; justify-content: space-between; gap: 12px; flex-wrap: wrap; font-size: .72rem; color: #c5d4de; padding-top: 18px; }
 
-/* Responsivo */
 @media (max-width: 960px) {
   nav ul { gap: 18px; }
   .hero-inner { grid-template-columns: 1fr; }

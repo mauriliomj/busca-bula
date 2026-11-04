@@ -32,6 +32,7 @@ import {
   logoutUser
 } from '../services/auth-service'
 import { extractErrorMessage } from '../services/http-client'
+import { useCurrentOrganization } from '../services/organization-branding'
 import {
   changeCurrentUserPassword,
   deleteCurrentUser,
@@ -56,6 +57,7 @@ const estados = [
 ]
 
 const administradorDaOrganizacao = currentUserRole() === ORGANIZATION_ADMIN_ROLE
+const organizacao = useCurrentOrganization()
 
 const menuItems = computed(() => [
   { label: 'Início', icon: House, href: '#' },
@@ -177,14 +179,17 @@ onBeforeUnmount(() => {
     <header class="header">
       <div class="header-inner">
         <a href="#" class="logo" aria-label="Busca Bula – início">
-          <svg width="44" height="44" viewBox="0 0 48 48" aria-hidden="true">
-            <rect x="14" y="4" width="28" height="36" rx="4" fill="#0f9e94" />
-            <rect x="18" y="8" width="20" height="28" rx="2" fill="#d9f1ee" />
-            <circle cx="20" cy="26" r="11" fill="#fff" stroke="#123a5c" stroke-width="3.5" />
-            <path d="M13 34 5 43" stroke="#123a5c" stroke-width="4.5" stroke-linecap="round" />
-            <path d="M15.5 22h9M15.5 26h9M15.5 30h6" stroke="#0f9e94" stroke-width="2.2" stroke-linecap="round" />
-          </svg>
-          <span>Busca <em>Bula</em></span>
+          <img v-if="organizacao?.logoUrl" :src="organizacao.logoUrl" :alt="organizacao.nome" class="org-logo" />
+          <template v-else>
+            <svg width="44" height="44" viewBox="0 0 48 48" aria-hidden="true">
+              <rect x="14" y="4" width="28" height="36" rx="4" fill="#0f9e94" />
+              <rect x="18" y="8" width="20" height="28" rx="2" fill="#d9f1ee" />
+              <circle cx="20" cy="26" r="11" fill="#fff" stroke="#123a5c" stroke-width="3.5" />
+              <path d="M13 34 5 43" stroke="#123a5c" stroke-width="4.5" stroke-linecap="round" />
+              <path d="M15.5 22h9M15.5 26h9M15.5 30h6" stroke="#0f9e94" stroke-width="2.2" stroke-linecap="round" />
+            </svg>
+            <span>Busca <em>Bula</em></span>
+          </template>
         </a>
 
         <nav class="top-nav" aria-label="Navegação principal">
@@ -451,11 +456,11 @@ onBeforeUnmount(() => {
 
 <style scoped>
 .perfil-page {
-  --navy: #123a5c;
+  --navy: var(--brand-secondary, #123a5c);
   --navy-dark: #16384f;
-  --teal: #0f9e94;
-  --teal-dark: #0b857c;
-  --mint: #d9f1ee;
+  --teal: var(--brand-primary, #0f9e94);
+  --teal-dark: var(--brand-primary-dark, #0b857c);
+  --mint: var(--brand-primary-soft, #d9f1ee);
   --bg-soft: #eef7f8;
   --text: #2b4a63;
   --muted: #6b8497;
@@ -475,6 +480,7 @@ onBeforeUnmount(() => {
 .header-inner { width: min(1200px, 100% - 48px); margin-inline: auto; height: 70px; display: flex; align-items: center; justify-content: space-between; gap: 24px; }
 .logo { display: flex; align-items: center; gap: 10px; font-weight: 800; font-size: 1.5rem; color: var(--navy); letter-spacing: -.02em; }
 .logo em { font-style: normal; color: var(--teal); }
+.org-logo { max-height: 48px; max-width: 220px; object-fit: contain; }
 .top-nav { display: flex; gap: 30px; }
 .top-nav a { font-size: .9rem; font-weight: 500; color: var(--navy); }
 .top-nav a:hover { color: var(--teal); }

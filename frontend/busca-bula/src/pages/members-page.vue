@@ -1,14 +1,23 @@
 <script setup>
 import { computed, onMounted, ref } from 'vue'
-import { Accessibility, Building2, LogOut, Search, Trash2, UserRound, Users } from 'lucide-vue-next'
+import { Accessibility, Building2, LogOut, Palette, Search, Trash2, UserRound, Users } from 'lucide-vue-next'
+import BrandingEditor from '../components/branding-editor.vue'
 import { ORGANIZATION_ADMIN_ROLE, currentUserRole, isAuthenticated, logoutUser } from '../services/auth-service'
+import { removeOwnLogo, updateOwnBrandColors, uploadOwnLogo } from '../services/branding-service'
 import { extractErrorMessage } from '../services/http-client'
 import { listMembers, removeMember } from '../services/member-service'
+import {
+  loadCurrentOrganization,
+  updateCurrentOrganizationBranding,
+  useCurrentOrganization
+} from '../services/organization-branding'
 import { isPlatformContext } from '../services/organization-context'
-import { fetchCurrentOrganization } from '../services/organization-service'
+
+const SECAO_POR_ANCORA = { '#identidade-visual': 'marca' }
 
 const membros = ref([])
-const organizacao = ref(null)
+const organizacao = useCurrentOrganization()
+const secaoAtual = ref(SECAO_POR_ANCORA[window.location.hash] || 'membros')
 const carregando = ref(true)
 const erro = ref('')
 const busca = ref('')
@@ -19,11 +28,25 @@ const descricaoPapel = {
   member: 'Membro'
 }
 
-const menuItems = [
-  { label: 'Membros', icon: Users, href: '/members', active: true },
+const cabecalhos = {
+  membros: { titulo: 'Membros', descricao: 'Acompanhe quem usa o Busca Bula pela sua organização.', icone: Users },
+  marca: { titulo: 'Identidade visual', descricao: 'Personalize a logo e as cores que seus clientes veem no app.', icone: Palette }
+}
+
+const menuItems = computed(() => [
+  { label: 'Membros', icon: Users, href: '#membros', secao: 'membros' },
+  { label: 'Identidade visual', icon: Palette, href: '#identidade-visual', secao: 'marca' },
   { label: 'Meu Perfil', icon: UserRound, href: '/user' },
   { label: 'Sair', icon: LogOut, href: '/login', sair: true }
-]
+].map((item) => ({ ...item, active: item.secao === secaoAtual.value })))
+
+const cabecalho = computed(() => cabecalhos[secaoAtual.value])
+
+const marcaAtual = computed(() => ({
+  logoUrl: organizacao.value?.logoUrl ?? null,
+  corPrimaria: organizacao.value?.corPrimaria ?? null,
+  corSecundaria: organizacao.value?.corSecundaria ?? null
+}))
 
 const membrosFiltrados = computed(() => {
   const termo = busca.value.trim().toLowerCase()
@@ -47,8 +70,7 @@ async function carregarPainel() {
   carregando.value = true
   erro.value = ''
   try {
-    const [dadosOrganizacao, listaMembros] = await Promise.all([fetchCurrentOrganization(), listMembers()])
-    organizacao.value = dadosOrganizacao
+    const [, listaMembros] = await Promise.all([loadCurrentOrganization(), listMembers()])
     membros.value = listaMembros
   } catch (falha) {
     erro.value = extractErrorMessage(falha, 'Não foi possível carregar os membros.')
@@ -71,8 +93,9 @@ async function remover(membro) {
   }
 }
 
-function sair() {
-  logoutUser()
+function selecionarItem(item) {
+  if (item.sair) logoutUser()
+  if (item.secao) secaoAtual.value = item.secao
 }
 
 onMounted(() => {
@@ -89,14 +112,17 @@ onMounted(() => {
     <header class="header">
       <div class="header-inner">
         <a href="/members" class="logo" aria-label="Busca Bula – painel da organização">
-          <svg width="44" height="44" viewBox="0 0 48 48" aria-hidden="true">
-            <rect x="14" y="4" width="28" height="36" rx="4" fill="#0f9e94" />
-            <rect x="18" y="8" width="20" height="28" rx="2" fill="#d9f1ee" />
-            <circle cx="20" cy="26" r="11" fill="#fff" stroke="#123a5c" stroke-width="3.5" />
-            <path d="M13 34 5 43" stroke="#123a5c" stroke-width="4.5" stroke-linecap="round" />
-            <path d="M15.5 22h9M15.5 26h9M15.5 30h6" stroke="#0f9e94" stroke-width="2.2" stroke-linecap="round" />
-          </svg>
-          <span>Busca <em>Bula</em></span>
+          <img v-if="organizacao?.logoUrl" :src="organizacao.logoUrl" :alt="organizacao.nome" class="org-logo" />
+          <template v-else>
+            <svg width="44" height="44" viewBox="0 0 48 48" aria-hidden="true">
+              <rect x="14" y="4" width="28" height="36" rx="4" fill="#0f9e94" />
+              <rect x="18" y="8" width="20" height="28" rx="2" fill="#d9f1ee" />
+              <circle cx="20" cy="26" r="11" fill="#fff" stroke="#123a5c" stroke-width="3.5" />
+              <path d="M13 34 5 43" stroke="#123a5c" stroke-width="4.5" stroke-linecap="round" />
+              <path d="M15.5 22h9M15.5 26h9M15.5 30h6" stroke="#0f9e94" stroke-width="2.2" stroke-linecap="round" />
+            </svg>
+            <span>Busca <em>Bula</em></span>
+          </template>
         </a>
 
         <div class="header-actions">
@@ -118,7 +144,7 @@ onMounted(() => {
             class="menu-item"
             :class="{ active: item.active }"
             :aria-current="item.active ? 'page' : undefined"
-            @click="item.sair && sair()"
+            @click="selecionarItem(item)"
           >
             <component :is="item.icon" :size="17" />
             <span>{{ item.label }}</span>
@@ -128,14 +154,26 @@ onMounted(() => {
 
       <main class="main-content">
         <div class="page-heading">
-          <div class="heading-icon"><Users :size="27" /></div>
+          <div class="heading-icon"><component :is="cabecalho.icone" :size="27" /></div>
           <div>
-            <h1>Membros</h1>
-            <p>Acompanhe quem usa o Busca Bula pela sua organização.</p>
+            <h1>{{ cabecalho.titulo }}</h1>
+            <p>{{ cabecalho.descricao }}</p>
           </div>
         </div>
 
-        <section class="table-card">
+        <section v-if="secaoAtual === 'marca'" class="table-card branding-card">
+          <h2 class="section-title branding-title"><Palette :size="17" />Logo e cores de {{ organizacao?.nome || 'sua organização' }}</h2>
+          <BrandingEditor
+            :marca="marcaAtual"
+            :nome-da-organizacao="organizacao?.nome || ''"
+            :salvar-cores="updateOwnBrandColors"
+            :enviar-logo="uploadOwnLogo"
+            :remover-logo="removeOwnLogo"
+            @atualizada="updateCurrentOrganizationBranding"
+          />
+        </section>
+
+        <section v-else class="table-card">
           <div class="table-toolbar">
             <h2 class="section-title">
               <Users :size="17" />{{ totalDeMembros }} {{ totalDeMembros === 1 ? 'membro cadastrado' : 'membros cadastrados' }}
@@ -197,10 +235,10 @@ onMounted(() => {
 
 <style scoped>
 .members-page {
-  --navy: #123a5c;
-  --teal: #0f9e94;
-  --teal-dark: #0b857c;
-  --mint: #d9f1ee;
+  --navy: var(--brand-secondary, #123a5c);
+  --teal: var(--brand-primary, #0f9e94);
+  --teal-dark: var(--brand-primary-dark, #0b857c);
+  --mint: var(--brand-primary-soft, #d9f1ee);
   --bg-soft: #eef7f8;
   --text: #2b4a63;
   --muted: #6b8497;
@@ -221,6 +259,7 @@ onMounted(() => {
 .header-inner { width: min(1200px, 100% - 48px); margin-inline: auto; height: 70px; display: flex; align-items: center; justify-content: space-between; gap: 24px; }
 .logo { display: flex; align-items: center; gap: 10px; font-weight: 800; font-size: 1.5rem; color: var(--navy); letter-spacing: -.02em; }
 .logo em { font-style: normal; color: var(--teal); }
+.org-logo { max-height: 48px; max-width: 220px; object-fit: contain; }
 .header-actions { display: flex; align-items: center; gap: 16px; }
 .icon-btn { width: 38px; height: 38px; border-radius: 50%; border: 2px solid var(--navy); background: none; color: var(--navy); display: grid; place-items: center; cursor: pointer; }
 .header-user { display: inline-flex; align-items: center; gap: 8px; background: var(--navy); color: #fff; font-weight: 600; font-size: .85rem; padding: 10px 20px; border-radius: 999px; }
@@ -241,6 +280,8 @@ onMounted(() => {
 .table-toolbar { display: flex; align-items: center; justify-content: space-between; gap: 16px; flex-wrap: wrap; margin-bottom: 18px; }
 .section-title { display: flex; align-items: center; gap: 10px; font-size: 1rem; font-weight: 700; color: var(--navy); }
 .section-title svg { color: var(--teal); }
+.branding-card { max-width: 720px; }
+.branding-title { margin-bottom: 20px; }
 
 .input-wrapper { display: flex; align-items: center; gap: 10px; border: 1px solid var(--line); border-radius: 10px; background: #fff; padding: 0 14px; color: var(--muted); transition: border-color .2s, box-shadow .2s; }
 .input-wrapper:focus-within { border-color: var(--teal); box-shadow: 0 0 0 3px rgba(15, 158, 148, .18); }

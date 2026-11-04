@@ -9,8 +9,10 @@
     import { loginUser, registerUser } from '../services/auth-service'
     import { extractErrorMessage } from '../services/http-client'
     import { isPlatformContext } from '../services/organization-context'
+    import { useCurrentOrganization } from '../services/organization-branding'
 
     const areaDaPlataforma = isPlatformContext()
+    const organizacao = useCurrentOrganization()
     const mostrarSenha = ref(false)
     const enviando = ref(false)
     const erro = ref(areaDaPlataforma ? 'Acesse o cadastro pelo endereço da sua organização.' : '')
@@ -49,7 +51,13 @@
         <div class="register-card">
 
             <section class="register-info">
-                <img :src="logo" alt="Busca Bula" id="logo_Register">
+                <img
+                    v-if="organizacao?.logoUrl"
+                    :src="organizacao.logoUrl"
+                    :alt="organizacao.nome"
+                    id="logo_organizacao"
+                >
+                <img v-else :src="logo" alt="Busca Bula" id="logo_Register">
 
                 <h2>Tenha acesso rápido<br>e seguro às bulas de<br>medicamentos.</h2>
 
@@ -267,12 +275,12 @@
     background-image:
         radial-gradient(
             circle 180px at 100% 0%,
-            #DDF3F2 99%,
+            var(--brand-primary-soft, #DDF3F2) 99%,
             transparent 100%
         ),
         radial-gradient(
             circle 250px at 0% 100%,
-            #DDF3F2 99%,
+            var(--brand-primary-soft, #DDF3F2) 99%,
             transparent 100%
         );
 
@@ -320,12 +328,20 @@ main {
     margin-left: 40px;
 }
 
+#logo_organizacao {
+    display: block;
+    max-width: 260px;
+    max-height: 110px;
+    margin: 0 0 18px 50px;
+    object-fit: contain;
+}
+
 #iconeRegister {
     width: 350px;
 }
 
 .register-info h2 {
-    color: #174563;
+    color: var(--brand-secondary, #174563);
     font-size: 20px;
     line-height: 1.4;
     margin: 0 0 10px 50px;
@@ -345,7 +361,7 @@ main {
 }
 
 .register-form h2 {
-    color: #174563;
+    color: var(--brand-secondary, #174563);
     font-size: 19px;
     margin: 2px 0 4px;
 }
@@ -376,7 +392,7 @@ main {
 }
 
 .form-group label {
-    color: #174563;
+    color: var(--brand-secondary, #174563);
     font-size: 11px;
     font-weight: 600;
 }
@@ -395,7 +411,7 @@ main {
 }
 
 .input-container:focus-within {
-    border-color: #0DA99F;
+    border-color: var(--brand-primary, #0DA99F);
 }
 
 .input-container input,
@@ -408,7 +424,7 @@ main {
     padding: 0;
     font-family: Arial, Helvetica, sans-serif;
     font-size: 9px;
-    color: #174563;
+    color: var(--brand-secondary, #174563);
     background: transparent;
 }
 
@@ -443,7 +459,7 @@ main {
     padding: 0 15px;
     border: none;
     border-radius: 25px;
-    background-color: #0DA99F;
+    background-color: var(--brand-primary, #0DA99F);
     color: white;
     font-size: 10px;
     font-weight: 600;
@@ -451,7 +467,7 @@ main {
 }
 
 #btn-entrar:hover {
-    background-color: #0B968E;
+    background-color: var(--brand-primary-dark, #0B968E);
 }
 
 #btn-entrar:disabled {
@@ -469,12 +485,12 @@ main {
 .login-link {
     margin: 14px 0 0;
     text-align: center;
-    color: #174563;
+    color: var(--brand-secondary, #174563);
     font-size: 9px;
 }
 
 .login-link a {
-    color: #0DA99F;
+    color: var(--brand-primary, #0DA99F);
     text-decoration: none;
     font-weight: 600;
 }

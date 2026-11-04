@@ -1,11 +1,10 @@
 <script setup>
   import { defineAsyncComponent } from 'vue';
   import Header from './components/header.vue';
+  import { useCurrentOrganization } from './services/organization-branding';
 
-  // Gera as rotas a partir dos arquivos da pasta pages:
-  // ./pages/login-page.vue -> /login (tambem aceita /login-page)
-  // Cada pagina so e carregada quando acessada, assim o CSS global
-  // de uma pagina nao interfere nas outras.
+  useCurrentOrganization();
+
   const arquivos = import.meta.glob('./pages/*.vue');
 
   const paginas = {};

@@ -1,11 +1,21 @@
 <script setup>
 import logo from '../assets/images/Logo.png'
 import { PersonStanding } from 'lucide-vue-next'
+import { useCurrentOrganization } from '../services/organization-branding'
+
+const organizacao = useCurrentOrganization()
 </script>
 
 <template>
     <header>
         <img
+            v-if="organizacao?.logoUrl"
+            :src="organizacao.logoUrl"
+            :alt="`Logo ${organizacao.nome}`"
+            id="logo_organizacao"
+        >
+        <img
+            v-else
             :src="logo"
             alt="Logo Busca Bula"
             id="logo_buscabula"
@@ -36,6 +46,13 @@ header {
     margin-left: 70px;
 }
 
+#logo_organizacao {
+    max-width: 230px;
+    max-height: 56px;
+    margin: 12px 0 12px 70px;
+    object-fit: contain;
+}
+
 .buttons_header {
     margin-right: 70px;
     display: flex;
@@ -48,7 +65,7 @@ header {
     height: 40px;
     padding: 0;
     border-radius: 50%;
-    border: 2px solid #174563;
+    border: 2px solid var(--brand-secondary, #174563);
     display: flex;
     align-items: center;
     justify-content: center;
@@ -58,13 +75,13 @@ header {
 #ajuda {
     border-radius: 30px;
     font-size: 14px;
-    border: 1.5px solid #174563;
+    border: 1.5px solid var(--brand-secondary, #174563);
     background: white;
     padding: 10px;
 }
 
 button {
-    color: #174563;
+    color: var(--brand-secondary, #174563);
     cursor: pointer;
 }
 </style>

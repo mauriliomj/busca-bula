@@ -2,6 +2,7 @@
 import { onMounted, ref } from 'vue'
 import {
   Accessibility,
+  ArrowLeft,
   Building2,
   CheckCircle,
   ExternalLink,
@@ -9,6 +10,7 @@ import {
   LockKeyhole,
   LogOut,
   Mail,
+  Palette,
   Plus,
   Power,
   ShieldCheck,
@@ -16,10 +18,20 @@ import {
   User,
   UserRound
 } from 'lucide-vue-next'
+import BrandingEditor from '../components/branding-editor.vue'
 import { PLATFORM_ADMIN_ROLE, currentUserRole, isAuthenticated, logoutUser } from '../services/auth-service'
 import { extractErrorMessage } from '../services/http-client'
 import { buildOrganizationHostname, buildOrganizationUrl, isPlatformContext } from '../services/organization-context'
-import { createOrganization, deleteOrganization, listOrganizations, updateOrganization } from '../services/organization-service'
+import {
+  createOrganization,
+  deleteOrganization,
+  fetchOrganizationBranding,
+  listOrganizations,
+  removeOrganizationLogo,
+  updateOrganization,
+  updateOrganizationBrandColors,
+  uploadOrganizationLogo
+} from '../services/organization-service'
 
 const organizacoes = ref([])
 const carregando = ref(true)
@@ -28,6 +40,9 @@ const criando = ref(false)
 const erroCriacao = ref('')
 const mensagem = ref('')
 const subdominioEditado = ref(false)
+const organizacaoEmEdicao = ref(null)
+const marcaEmEdicao = ref(null)
+const erroMarca = ref('')
 
 const formulario = ref(criarFormularioVazio())
 
@@ -105,6 +120,38 @@ async function alternarStatus(organizacao) {
   }
 }
 
+async function editarMarca(organizacao) {
+  organizacaoEmEdicao.value = organizacao
+  marcaEmEdicao.value = null
+  erroMarca.value = ''
+  try {
+    marcaEmEdicao.value = await fetchOrganizationBranding(organizacao.id)
+  } catch (falha) {
+    erroMarca.value = extractErrorMessage(falha, 'Não foi possível carregar a identidade visual.')
+  }
+}
+
+function fecharEditorDeMarca() {
+  organizacaoEmEdicao.value = null
+  marcaEmEdicao.value = null
+}
+
+function salvarCoresDaOrganizacao(cores) {
+  return updateOrganizationBrandColors(organizacaoEmEdicao.value.id, cores)
+}
+
+function enviarLogoDaOrganizacao(arquivo) {
+  return uploadOrganizationLogo(organizacaoEmEdicao.value.id, arquivo)
+}
+
+function removerLogoDaOrganizacao() {
+  return removeOrganizationLogo(organizacaoEmEdicao.value.id)
+}
+
+function atualizarMarcaEmEdicao(marca) {
+  marcaEmEdicao.value = marca
+}
+
 async function excluirOrganizacao(organizacao) {
   const confirmado = window.confirm(
     `Excluir ${organizacao.nome}? O banco de dados da organização e todos os usuários dela serão apagados definitivamente.`
@@ -114,6 +161,7 @@ async function excluirOrganizacao(organizacao) {
   try {
     await deleteOrganization(organizacao.id)
     organizacoes.value = organizacoes.value.filter((item) => item.id !== organizacao.id)
+    if (organizacaoEmEdicao.value?.id === organizacao.id) fecharEditorDeMarca()
   } catch (falha) {
     erroLista.value = extractErrorMessage(falha, 'Não foi possível excluir a organização.')
   }
@@ -220,30 +268,61 @@ onMounted(() => {
                     </span>
                   </td>
                   <td class="actions-cell">
-                    <button
-                      v-if="organizacao.status !== 'provisioning'"
-                      class="status-button"
-                      type="button"
-                      @click="alternarStatus(organizacao)"
-                    >
-                      <Power :size="14" />
-                      {{ organizacao.status === 'active' ? 'Desativar' : 'Ativar' }}
-                    </button>
-                    <button
-                      v-if="organizacao.status === 'inactive'"
-                      class="delete-button"
-                      type="button"
-                      @click="excluirOrganizacao(organizacao)"
-                    >
-                      <Trash2 :size="14" />Excluir
-                    </button>
+                    <div class="actions">
+                      <button
+                        v-if="organizacao.status !== 'provisioning'"
+                        class="status-button"
+                        type="button"
+                        :aria-label="`Identidade visual de ${organizacao.nome}`"
+                        @click="editarMarca(organizacao)"
+                      >
+                        <Palette :size="14" />Marca
+                      </button>
+                      <button
+                        v-if="organizacao.status !== 'provisioning'"
+                        class="status-button"
+                        type="button"
+                        @click="alternarStatus(organizacao)"
+                      >
+                        <Power :size="14" />
+                        {{ organizacao.status === 'active' ? 'Desativar' : 'Ativar' }}
+                      </button>
+                      <button
+                        v-if="organizacao.status === 'inactive'"
+                        class="delete-button"
+                        type="button"
+                        @click="excluirOrganizacao(organizacao)"
+                      >
+                        <Trash2 :size="14" />Excluir
+                      </button>
+                    </div>
                   </td>
                 </tr>
               </tbody>
             </table>
           </section>
 
-          <aside class="form-card">
+          <aside v-if="organizacaoEmEdicao" class="form-card">
+            <button class="back-button" type="button" @click="fecharEditorDeMarca">
+              <ArrowLeft :size="14" />Nova organização
+            </button>
+            <h2 class="section-title"><Palette :size="17" />Identidade visual de {{ organizacaoEmEdicao.nome }}</h2>
+
+            <p v-if="erroMarca" class="error-message" role="alert">{{ erroMarca }}</p>
+            <p v-else-if="!marcaEmEdicao" class="empty-state">Carregando identidade visual...</p>
+            <BrandingEditor
+              v-else
+              :key="organizacaoEmEdicao.id"
+              :marca="marcaEmEdicao"
+              :nome-da-organizacao="organizacaoEmEdicao.nome"
+              :salvar-cores="salvarCoresDaOrganizacao"
+              :enviar-logo="enviarLogoDaOrganizacao"
+              :remover-logo="removerLogoDaOrganizacao"
+              @atualizada="atualizarMarcaEmEdicao"
+            />
+          </aside>
+
+          <aside v-else class="form-card">
             <h2 class="section-title"><Plus :size="17" />Nova organização</h2>
 
             <form class="org-form" @submit.prevent="criarOrganizacao">
@@ -398,7 +477,10 @@ onMounted(() => {
 .actions-cell { text-align: right; }
 .status-button { display: inline-flex; align-items: center; gap: 6px; background: none; border: 1.5px solid var(--teal); color: var(--teal); font-weight: 600; font-size: .8rem; padding: 6px 14px; border-radius: 999px; cursor: pointer; transition: all .2s; white-space: nowrap; }
 .status-button:hover { background: var(--teal); color: #fff; }
-.delete-button { display: inline-flex; align-items: center; gap: 6px; margin-left: 8px; background: none; border: 1.5px solid var(--danger); color: var(--danger); font-weight: 600; font-size: .8rem; padding: 6px 14px; border-radius: 999px; cursor: pointer; transition: all .2s; white-space: nowrap; }
+.actions { display: inline-flex; justify-content: flex-end; gap: 8px; flex-wrap: wrap; }
+.back-button { display: inline-flex; align-items: center; gap: 6px; background: none; border: 0; color: var(--muted); font-weight: 600; font-size: .8rem; cursor: pointer; margin-bottom: 14px; }
+.back-button:hover { color: var(--navy); }
+.delete-button { display: inline-flex; align-items: center; gap: 6px; background: none; border: 1.5px solid var(--danger); color: var(--danger); font-weight: 600; font-size: .8rem; padding: 6px 14px; border-radius: 999px; cursor: pointer; transition: all .2s; white-space: nowrap; }
 .delete-button:hover { background: var(--danger); color: #fff; }
 
 .org-form { display: flex; flex-direction: column; gap: 14px; }

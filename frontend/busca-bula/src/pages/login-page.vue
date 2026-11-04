@@ -6,7 +6,7 @@
     import { computed, onMounted, ref } from 'vue'
     import { currentUserRole, homePathForRole, isAuthenticated, loginUser } from '../services/auth-service'
     import { extractErrorMessage } from '../services/http-client'
-    import { fetchCurrentOrganization } from '../services/organization-service'
+    import { loadCurrentOrganization } from '../services/organization-branding'
     import { isPlatformContext } from '../services/organization-context'
 
     const areaDaPlataforma = isPlatformContext()
@@ -25,7 +25,7 @@
 
     async function carregarOrganizacao() {
         try {
-            organizacao.value = await fetchCurrentOrganization()
+            organizacao.value = await loadCurrentOrganization()
         } catch (falha) {
             organizacaoIndisponivel.value = true
             erro.value = extractErrorMessage(falha, 'Não foi possível carregar a organização.')
@@ -61,7 +61,13 @@
         <div class="login-card">
 
             <section class="login-info">
-                <img :src="logo2" alt="Busca Bula" id="logo_login">
+                <img
+                    v-if="organizacao?.logoUrl"
+                    :src="organizacao.logoUrl"
+                    :alt="organizacao.nome"
+                    id="logo_organizacao"
+                >
+                <img v-else :src="logo2" alt="Busca Bula" id="logo_login">
 
                 <h2>Acesse suas bulas<br>de forma rápida e segura.</h2>
 
@@ -177,12 +183,20 @@ main {
     margin-bottom: 18px;
 }
 
+#logo_organizacao {
+    display: block;
+    max-width: 200px;
+    max-height: 90px;
+    margin-bottom: 18px;
+    object-fit: contain;
+}
+
 #iconeLogin{
     width: 230px;
 }
 
 .login-info h2 {
-    color: #174563;
+    color: var(--brand-secondary, #174563);
     font-size: 17px;
     line-height: 1.4;
     margin: 0 0 10px;
@@ -206,7 +220,7 @@ icon-placeholder{
 }
 
 .login-form h2 {
-    color: #174563;
+    color: var(--brand-secondary, #174563);
     font-size: 21px;
     margin: 3px 0 8px;
 }
@@ -225,7 +239,7 @@ icon-placeholder{
 }
 
 .form-group label {
-    color: #174563;
+    color: var(--brand-secondary, #174563);
     font-size: 13px;
     font-weight: 600;
 }
@@ -246,7 +260,7 @@ icon-placeholder{
     outline: none;
     padding: 8px;
     font-size: 11px;
-    color: #174563;
+    color: var(--brand-secondary, #174563);
     background: transparent;
 }
 
@@ -265,7 +279,7 @@ icon-placeholder{
     padding: 0 15px;
     border: none;
     border-radius: 25px;
-    background-color: #0DA99F;
+    background-color: var(--brand-primary, #0DA99F);
     color: white;
     font-size: 12px;
     font-weight: 600;
@@ -273,7 +287,7 @@ icon-placeholder{
 }
 
 #btn-entrar:hover {
-    background-color: #0B968E;
+    background-color: var(--brand-primary-dark, #0B968E);
 }
 
 #btn-entrar:disabled {
@@ -291,12 +305,12 @@ icon-placeholder{
 .register-link {
     margin: 16px 0 0;
     text-align: center;
-    color: #174563;
+    color: var(--brand-secondary, #174563);
     font-size: 12px;
 }
 
 .register-link a {
-    color: #0DA99F;
+    color: var(--brand-primary, #0DA99F);
     text-decoration: none;
     font-weight: 600;
 }

@@ -2,7 +2,44 @@ import httpClient from './http-client'
 
 export async function fetchCurrentOrganization() {
   const { data } = await httpClient.get('/organizations/current')
-  return { nome: data.name, subdominio: data.slug }
+  return { nome: data.name, subdominio: data.slug, ...mapBranding(data) }
+}
+
+export function mapBranding(branding) {
+  return {
+    logoUrl: branding.logo_url,
+    corPrimaria: branding.primary_color,
+    corSecundaria: branding.secondary_color,
+  }
+}
+
+export function buildBrandColorsPayload(cores) {
+  return {
+    primary_color: cores.corPrimaria || null,
+    secondary_color: cores.corSecundaria || null,
+  }
+}
+
+export async function fetchOrganizationBranding(id) {
+  const { data } = await httpClient.get(`/platform/organizations/${id}/branding`)
+  return mapBranding(data)
+}
+
+export async function updateOrganizationBrandColors(id, cores) {
+  const { data } = await httpClient.put(`/platform/organizations/${id}/branding`, buildBrandColorsPayload(cores))
+  return mapBranding(data)
+}
+
+export async function uploadOrganizationLogo(id, arquivo) {
+  const { data } = await httpClient.put(`/platform/organizations/${id}/branding/logo`, arquivo, {
+    headers: { 'Content-Type': arquivo.type },
+  })
+  return mapBranding(data)
+}
+
+export async function removeOrganizationLogo(id) {
+  const { data } = await httpClient.delete(`/platform/organizations/${id}/branding/logo`)
+  return mapBranding(data)
 }
 
 export async function listOrganizations() {
