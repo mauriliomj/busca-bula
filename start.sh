@@ -9,6 +9,7 @@ fi
 
 FRONTEND_PORT="${FRONTEND_PORT:-5173}"
 BACKEND_PORT="${BACKEND_PORT:-8000}"
+NGROK_INSPECTOR_PORT="${NGROK_INSPECTOR_PORT:-4040}"
 
 info() { printf '\033[1;36m[busca-bula]\033[0m %s\n' "$*"; }
 erro() { printf '\033[1;31m[busca-bula]\033[0m %s\n' "$*" >&2; exit 1; }
@@ -115,6 +116,10 @@ BUILD=()
 precisa_build busca-bula-backend "$BACKEND_DEPS_HASH" && BUILD+=(backend)
 precisa_build busca-bula-frontend "$FRONTEND_DEPS_HASH" && BUILD+=(frontend)
 
+if [ -n "${NGROK_AUTHTOKEN:-}" ]; then
+    COMPOSE+=(--profile tunnel)
+fi
+
 UP_ARGS=(up -d)
 if [ ${#BUILD[@]} -gt 0 ]; then
     info "Construindo as imagens: ${BUILD[*]} (a primeira vez demora alguns minutos)..."
@@ -147,12 +152,39 @@ if command -v curl >/dev/null 2>&1; then
     aguardar_resposta "$URL" 60 || true
 fi
 
+ler_url_do_ngrok() {
+    curl -sf "http://127.0.0.1:${NGROK_INSPECTOR_PORT}/api/tunnels" 2>/dev/null \
+        | grep -o '"public_url":"https://[^"]*"' | head -n 1 | cut -d'"' -f4
+}
+
+URL_PUBLICA=""
+if [ -n "${NGROK_AUTHTOKEN:-}" ] && command -v curl >/dev/null 2>&1; then
+    info "Aguardando o tunel do ngrok..."
+    for _ in $(seq 1 30); do
+        URL_PUBLICA="$(ler_url_do_ngrok)"
+        [ -n "$URL_PUBLICA" ] && break
+        sleep 2
+    done
+fi
+
+IP_LOCAL="$(hostname -I 2>/dev/null | awk '{print $1}')"
+
 echo
 info "Projeto rodando!"
 info "  Frontend:     $URL"
 info "  Backend:      ${API_URL}"
 info "  Docs da API:  ${API_URL}/docs"
 info "  Organizacoes: http://<subdominio>.localhost:${FRONTEND_PORT}"
+if [ -n "${DEFAULT_ORGANIZATION:-}" ]; then
+    [ -n "$IP_LOCAL" ] && info "  Rede local:   http://${IP_LOCAL}:${FRONTEND_PORT} (organizacao ${DEFAULT_ORGANIZATION}, sem instalar o app)"
+    if [ -n "$URL_PUBLICA" ]; then
+        info "  Celular:      ${URL_PUBLICA} (HTTPS, permite instalar o app)"
+    elif [ -n "${NGROK_AUTHTOKEN:-}" ]; then
+        info "  O tunel do ngrok nao respondeu. Veja os logs com: ${COMPOSE[*]} logs -f ngrok"
+    fi
+else
+    info "  Para abrir pelo celular, defina DEFAULT_ORGANIZATION (e NGROK_AUTHTOKEN) no .env."
+fi
 info "Para ver os logs: ${COMPOSE[*]} logs -f"
 info "Para parar:       ./stop.sh"
 

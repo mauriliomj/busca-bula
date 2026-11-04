@@ -26,7 +26,7 @@ else
     COMPOSE=(docker-compose)
 fi
 
-ARGS=(down)
+ARGS=(--profile tunnel down)
 if [ "${1:-}" = "--limpar" ]; then
     info "Removendo containers e dados do banco..."
     ARGS+=(-v)

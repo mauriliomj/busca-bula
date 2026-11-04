@@ -9,6 +9,8 @@ if (Test-Path '.env') {
 
 $FrontendPort = if ($env:FRONTEND_PORT) { $env:FRONTEND_PORT } else { '5173' }
 $BackendPort = if ($env:BACKEND_PORT) { $env:BACKEND_PORT } else { '8000' }
+$NgrokInspectorPort = if ($env:NGROK_INSPECTOR_PORT) { $env:NGROK_INSPECTOR_PORT } else { '4040' }
+$PerfilDoTunel = if ($env:NGROK_AUTHTOKEN) { @('--profile', 'tunnel') } else { @() }
 
 function Info($msg) { Write-Host "[busca-bula] $msg" -ForegroundColor Cyan }
 function Erro($msg) { Write-Host "[busca-bula] $msg" -ForegroundColor Red; exit 1 }
@@ -93,7 +95,7 @@ $Build = @()
 if (Precisa-Build 'busca-bula-backend' $env:BACKEND_DEPS_HASH) { $Build += 'backend' }
 if (Precisa-Build 'busca-bula-frontend' $env:FRONTEND_DEPS_HASH) { $Build += 'frontend' }
 
-$UpArgs = @('compose', 'up', '-d')
+$UpArgs = @('compose') + $PerfilDoTunel + @('up', '-d')
 if ($Build.Count -gt 0) {
     Info "Construindo as imagens: $($Build -join ', ') (a primeira vez demora alguns minutos)..."
     docker compose build @Build
@@ -129,12 +131,44 @@ if (-not (Aguardar-Resposta "$ApiUrl/api/health" 90)) {
 Info 'Aguardando o frontend responder...'
 Aguardar-Resposta $Url 60 | Out-Null
 
+function Ler-UrlDoNgrok {
+    try {
+        $tuneis = Invoke-RestMethod -Uri "http://127.0.0.1:$NgrokInspectorPort/api/tunnels" -TimeoutSec 2
+        return ($tuneis.tunnels | Where-Object { $_.public_url -like 'https://*' } | Select-Object -First 1).public_url
+    } catch {
+        return $null
+    }
+}
+
+$UrlPublica = $null
+if ($env:NGROK_AUTHTOKEN) {
+    Info 'Aguardando o tunel do ngrok...'
+    for ($i = 0; $i -lt 30 -and -not $UrlPublica; $i++) {
+        $UrlPublica = Ler-UrlDoNgrok
+        if (-not $UrlPublica) { Start-Sleep -Seconds 2 }
+    }
+}
+
+$IpLocal = (Get-NetIPConfiguration -ErrorAction SilentlyContinue |
+    Where-Object { $_.IPv4DefaultGateway } |
+    Select-Object -First 1).IPv4Address.IPAddress
+
 Write-Host ''
 Info 'Projeto rodando!'
 Info "  Frontend:     $Url"
 Info "  Backend:      $ApiUrl"
 Info "  Docs da API:  $ApiUrl/docs"
 Info "  Organizacoes: http://<subdominio>.localhost:$FrontendPort"
+if ($env:DEFAULT_ORGANIZATION) {
+    if ($IpLocal) { Info "  Rede local:   http://${IpLocal}:$FrontendPort (organizacao $($env:DEFAULT_ORGANIZATION), sem instalar o app)" }
+    if ($UrlPublica) {
+        Info "  Celular:      $UrlPublica (HTTPS, permite instalar o app)"
+    } elseif ($env:NGROK_AUTHTOKEN) {
+        Info '  O tunel do ngrok nao respondeu. Veja os logs com: docker compose logs -f ngrok'
+    }
+} else {
+    Info '  Para abrir pelo celular, defina DEFAULT_ORGANIZATION (e NGROK_AUTHTOKEN) no .env.'
+}
 Info 'Para ver os logs: docker compose logs -f'
 Info 'Para parar:       stop.bat'
 

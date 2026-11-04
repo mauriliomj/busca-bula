@@ -33,6 +33,7 @@ services:
       PLATFORM_DATABASE_NAME: ${POSTGRES_DB:-busca_bula}
       TENANT_DATABASE_SECRET: ${TENANT_DATABASE_SECRET:-dev-tenant-database-secret}
       JWT_SECRET: ${JWT_SECRET:-dev-jwt-secret}
+      SESSION_COOKIE_SECURE: ${SESSION_COOKIE_SECURE:-false}
       CATALOG_CACHE_DIR: /var/cache/busca-bula/catalog
     volumes:
       - ./backend:/app
@@ -54,6 +55,8 @@ services:
       VITE_USE_POLLING: "true"
       VITE_API_TARGET: http://backend:8000
       VITE_BASE_DOMAIN: ${BASE_DOMAIN:-localhost}
+      VITE_DEFAULT_ORGANIZATION: ${DEFAULT_ORGANIZATION:-}
+      VITE_DEVTOOLS: ${VITE_DEVTOOLS:-false}
     volumes:
       - ./frontend/busca-bula:/app
       - /app/node_modules
@@ -61,6 +64,19 @@ services:
       - "${FRONTEND_PORT:-5173}:5173"
     depends_on:
       - backend
+
+  ngrok:
+    image: ngrok/ngrok:latest
+    pull_policy: missing
+    profiles: [tunnel]
+    restart: unless-stopped
+    environment:
+      NGROK_AUTHTOKEN: ${NGROK_AUTHTOKEN:-}
+    command: http frontend:5173 --log stdout ${NGROK_DOMAIN:+--url=${NGROK_DOMAIN}}
+    ports:
+      - "127.0.0.1:${NGROK_INSPECTOR_PORT:-4040}:4040"
+    depends_on:
+      - frontend
 
 volumes:
   db_data:

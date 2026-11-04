@@ -19,10 +19,10 @@ if ($LASTEXITCODE -ne 0) { Erro 'O Docker nao esta rodando. Abra o Docker Deskto
 
 if ($Opcao -eq '--limpar') {
     Info 'Removendo containers e dados do banco...'
-    docker compose down -v
+    docker compose --profile tunnel down -v
 } else {
     Info 'Parando os containers...'
-    docker compose down
+    docker compose --profile tunnel down
 }
 if ($LASTEXITCODE -ne 0) { Erro 'Falha ao parar os containers.' }
 

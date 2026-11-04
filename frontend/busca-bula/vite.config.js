@@ -15,6 +15,7 @@ export default defineConfig({
     process.env.VITE_DEVTOOLS === 'true' && vueDevTools(),
     VitePWA({
       registerType: 'prompt',
+      useCredentials: true,
       includeAssets: ['favicon.ico', 'logo-mark.png', 'apple-touch-icon-180x180.png'],
       manifest: {
         id: '/',
