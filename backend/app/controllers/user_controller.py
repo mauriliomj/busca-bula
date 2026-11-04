@@ -1,6 +1,7 @@
 from fastapi import APIRouter, Depends, status
 from sqlalchemy.orm import Session
 
+from app.core.session_cookie import read_session_cookie
 from app.dependencies.authentication import get_current_member
 from app.dependencies.tenant import get_tenant_session
 from app.models.tenant.user import User
@@ -34,8 +35,9 @@ def change_current_user_password(
     request: PasswordChangeRequest,
     current_member: User = Depends(get_current_member),
     tenant_session: Session = Depends(get_tenant_session),
+    refresh_token: str | None = Depends(read_session_cookie),
 ) -> None:
-    ProfileService(tenant_session).change_password(current_member, request)
+    ProfileService(tenant_session).change_password(current_member, request, refresh_token)
 
 
 @router.delete("/me", status_code=status.HTTP_204_NO_CONTENT)

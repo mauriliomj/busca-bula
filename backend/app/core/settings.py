@@ -26,6 +26,9 @@ class Settings(BaseSettings):
     jwt_secret: str = "dev-jwt-secret"
     jwt_algorithm: str = "HS256"
     access_token_expire_minutes: int = 60
+    refresh_token_expire_days: int = 30
+    session_cookie_name: str = "busca_bula_session"
+    session_cookie_secure: bool = False
 
 
 @lru_cache
