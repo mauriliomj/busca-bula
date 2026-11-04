@@ -12,13 +12,14 @@ import {
   Plus,
   Power,
   ShieldCheck,
+  Trash2,
   User,
   UserRound
 } from 'lucide-vue-next'
 import { PLATFORM_ADMIN_ROLE, currentUserRole, isAuthenticated, logoutUser } from '../services/auth-service'
 import { extractErrorMessage } from '../services/http-client'
 import { buildOrganizationHostname, buildOrganizationUrl, isPlatformContext } from '../services/organization-context'
-import { createOrganization, listOrganizations, updateOrganization } from '../services/organization-service'
+import { createOrganization, deleteOrganization, listOrganizations, updateOrganization } from '../services/organization-service'
 
 const organizacoes = ref([])
 const carregando = ref(true)
@@ -101,6 +102,20 @@ async function alternarStatus(organizacao) {
     organizacoes.value = organizacoes.value.map((item) => (item.id === atualizada.id ? atualizada : item))
   } catch (falha) {
     erroLista.value = extractErrorMessage(falha, 'Não foi possível alterar o status da organização.')
+  }
+}
+
+async function excluirOrganizacao(organizacao) {
+  const confirmado = window.confirm(
+    `Excluir ${organizacao.nome}? O banco de dados da organização e todos os usuários dela serão apagados definitivamente.`
+  )
+  if (!confirmado) return
+  erroLista.value = ''
+  try {
+    await deleteOrganization(organizacao.id)
+    organizacoes.value = organizacoes.value.filter((item) => item.id !== organizacao.id)
+  } catch (falha) {
+    erroLista.value = extractErrorMessage(falha, 'Não foi possível excluir a organização.')
   }
 }
 
@@ -213,6 +228,14 @@ onMounted(() => {
                     >
                       <Power :size="14" />
                       {{ organizacao.status === 'active' ? 'Desativar' : 'Ativar' }}
+                    </button>
+                    <button
+                      v-if="organizacao.status === 'inactive'"
+                      class="delete-button"
+                      type="button"
+                      @click="excluirOrganizacao(organizacao)"
+                    >
+                      <Trash2 :size="14" />Excluir
                     </button>
                   </td>
                 </tr>
@@ -375,6 +398,8 @@ onMounted(() => {
 .actions-cell { text-align: right; }
 .status-button { display: inline-flex; align-items: center; gap: 6px; background: none; border: 1.5px solid var(--teal); color: var(--teal); font-weight: 600; font-size: .8rem; padding: 6px 14px; border-radius: 999px; cursor: pointer; transition: all .2s; white-space: nowrap; }
 .status-button:hover { background: var(--teal); color: #fff; }
+.delete-button { display: inline-flex; align-items: center; gap: 6px; margin-left: 8px; background: none; border: 1.5px solid var(--danger); color: var(--danger); font-weight: 600; font-size: .8rem; padding: 6px 14px; border-radius: 999px; cursor: pointer; transition: all .2s; white-space: nowrap; }
+.delete-button:hover { background: var(--danger); color: #fff; }
 
 .org-form { display: flex; flex-direction: column; gap: 14px; }
 .field label { display: block; font-size: .8rem; font-weight: 600; color: var(--navy); margin-bottom: 6px; }

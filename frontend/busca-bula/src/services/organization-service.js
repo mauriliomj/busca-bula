@@ -29,6 +29,10 @@ export async function updateOrganization(id, alteracoes) {
   return mapOrganization(data)
 }
 
+export async function deleteOrganization(id) {
+  await httpClient.delete(`/platform/organizations/${id}`)
+}
+
 function mapOrganization(organization) {
   return {
     id: organization.id,

@@ -8,6 +8,12 @@ import {
 } from './token-storage'
 
 export const PLATFORM_ADMIN_ROLE = 'platform_admin'
+export const ORGANIZATION_ADMIN_ROLE = 'org_admin'
+
+const homePaths = {
+  [PLATFORM_ADMIN_ROLE]: '/org',
+  [ORGANIZATION_ADMIN_ROLE]: '/members',
+}
 
 export async function registerUser(formulario) {
   const { data } = await httpClient.post('/auth/register', {
@@ -44,5 +50,5 @@ export function currentUserRole() {
 }
 
 export function homePathForRole(role) {
-  return role === PLATFORM_ADMIN_ROLE ? '/org' : '/user'
+  return homePaths[role] ?? '/user'
 }

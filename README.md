@@ -86,7 +86,17 @@ O banco PostgreSQL fica acessível apenas entre os containers.
    A senha é pedida no terminal (mínimo de 8 caracteres).
 
 2. Entre em http://localhost:5173/login com esse e-mail e crie uma organização no painel, por exemplo com o subdomínio `farmaciax`.
-3. Acesse http://farmaciax.localhost:5173/register para cadastrar um usuário dessa organização. O administrador informado na criação da organização também entra por esse endereço.
+3. Acesse http://farmaciax.localhost:5173/register para cadastrar um usuário dessa organização. O administrador informado na criação da organização entra por http://farmaciax.localhost:5173/login e cai no painel de membros (`/members`).
+
+## Páginas por perfil
+
+| Perfil                          | Onde entra                          | Páginas                                                   |
+| ------------------------------- | ----------------------------------- | --------------------------------------------------------- |
+| Administrador da plataforma     | `localhost:5173/login`              | `/org`: criar, ativar, desativar e excluir organizações  |
+| Administrador da organização    | `<subdominio>.localhost:5173/login` | `/members`: membros da organização; `/user`: perfil     |
+| Membro                          | `<subdominio>.localhost:5173/login` | `/user`: perfil, alteração de senha e exclusão da conta |
+
+Uma organização só pode ser excluída depois de desativada. A exclusão apaga o banco e o usuário PostgreSQL dela.
 
 Os navegadores atuais resolvem qualquer `*.localhost` para a própria máquina, então não é preciso configurar DNS em desenvolvimento.
 

@@ -1,5 +1,5 @@
 <script setup>
-import { ref, onBeforeUnmount, onMounted } from 'vue'
+import { computed, ref, onBeforeUnmount, onMounted } from 'vue'
 import {
   House,
   Search,
@@ -20,10 +20,24 @@ import {
   Camera,
   Save,
   CheckCircle,
-  Eye
+  Eye,
+  Trash2,
+  Users
 } from 'lucide-vue-next'
-import { PLATFORM_ADMIN_ROLE, currentUserRole, isAuthenticated, logoutUser } from '../services/auth-service'
-import { fetchCurrentUser } from '../services/user-service'
+import {
+  ORGANIZATION_ADMIN_ROLE,
+  PLATFORM_ADMIN_ROLE,
+  currentUserRole,
+  isAuthenticated,
+  logoutUser
+} from '../services/auth-service'
+import { extractErrorMessage } from '../services/http-client'
+import {
+  changeCurrentUserPassword,
+  deleteCurrentUser,
+  fetchCurrentUser,
+  updateCurrentUser
+} from '../services/user-service'
 
 const perfil = ref({
   nome: '',
@@ -41,19 +55,38 @@ const estados = [
   'PB', 'PR', 'PE', 'PI', 'RJ', 'RN', 'RS', 'RO', 'RR', 'SC', 'SP', 'SE', 'TO'
 ]
 
-const menuItems = [
+const administradorDaOrganizacao = currentUserRole() === ORGANIZATION_ADMIN_ROLE
+
+const menuItems = computed(() => [
   { label: 'Início', icon: House, href: '#' },
   { label: 'Buscar', icon: Search, href: '#' },
   { label: 'Minhas Consultas', icon: FileText, href: '#' },
-  { label: 'Meu Perfil', icon: UserRound, href: '#', active: true },
+  ...(administradorDaOrganizacao ? [{ label: 'Membros', icon: Users, href: '/members' }] : []),
+  { label: 'Meu Perfil', icon: UserRound, href: '/user', active: true },
   { label: 'Sair', icon: LogOut, href: '/login', sair: true }
-]
+])
 
 const foto = ref('')
 const inputFoto = ref(null)
 const mensagem = ref('')
+const erroPerfil = ref('')
+const salvando = ref(false)
 const avisoSeguranca = ref('')
+const erroSeguranca = ref('')
+const painelAberto = ref('')
+const processandoSeguranca = ref(false)
+const alteracaoSenha = ref(criarAlteracaoSenhaVazia())
+const senhaExclusao = ref('')
 let timer = null
+
+function criarAlteracaoSenhaVazia() {
+  return { atual: '', nova: '', confirmacao: '' }
+}
+
+function alternarPainel(painel) {
+  painelAberto.value = painelAberto.value === painel ? '' : painel
+  erroSeguranca.value = ''
+}
 
 function mostrar(alvo, texto) {
   alvo.value = texto
@@ -61,8 +94,51 @@ function mostrar(alvo, texto) {
   timer = setTimeout(() => (alvo.value = ''), 3000)
 }
 
-function salvarAlteracoes() {
-  mostrar(mensagem, 'Alterações salvas nesta sessão!')
+async function salvarAlteracoes() {
+  erroPerfil.value = ''
+  salvando.value = true
+  try {
+    perfil.value = await updateCurrentUser(perfil.value)
+    mostrar(mensagem, 'Alterações salvas!')
+  } catch (falha) {
+    erroPerfil.value = extractErrorMessage(falha, 'Não foi possível salvar as alterações.')
+  } finally {
+    salvando.value = false
+  }
+}
+
+async function alterarSenha() {
+  erroSeguranca.value = ''
+  if (alteracaoSenha.value.nova !== alteracaoSenha.value.confirmacao) {
+    erroSeguranca.value = 'A confirmação não confere com a nova senha.'
+    return
+  }
+  processandoSeguranca.value = true
+  try {
+    await changeCurrentUserPassword(alteracaoSenha.value.atual, alteracaoSenha.value.nova)
+    alteracaoSenha.value = criarAlteracaoSenhaVazia()
+    painelAberto.value = ''
+    mostrar(avisoSeguranca, 'Senha alterada com sucesso!')
+  } catch (falha) {
+    erroSeguranca.value = extractErrorMessage(falha, 'Não foi possível alterar a senha.')
+  } finally {
+    processandoSeguranca.value = false
+  }
+}
+
+async function excluirConta() {
+  erroSeguranca.value = ''
+  if (!window.confirm('Excluir sua conta? Todos os seus dados serão apagados e essa ação não pode ser desfeita.')) return
+  processandoSeguranca.value = true
+  try {
+    await deleteCurrentUser(senhaExclusao.value)
+    logoutUser()
+    window.location.href = '/login'
+  } catch (falha) {
+    erroSeguranca.value = extractErrorMessage(falha, 'Não foi possível excluir a conta.')
+  } finally {
+    processandoSeguranca.value = false
+  }
 }
 
 function sair() {
@@ -248,12 +324,13 @@ onBeforeUnmount(() => {
                 </div>
 
                 <div class="form-footer">
-                  <button class="save-button" type="submit">
-                    <Save :size="15" />Salvar alterações
+                  <button class="save-button" type="submit" :disabled="salvando">
+                    <Save :size="15" />{{ salvando ? 'Salvando...' : 'Salvar alterações' }}
                   </button>
                   <p v-if="mensagem" class="success-message" role="status">
                     <CheckCircle :size="15" />{{ mensagem }}
                   </p>
+                  <p v-if="erroPerfil" class="error-message" role="alert">{{ erroPerfil }}</p>
                 </div>
               </div>
             </form>
@@ -285,24 +362,80 @@ onBeforeUnmount(() => {
 
               <button
                 class="security-option"
+                :class="{ open: painelAberto === 'senha' }"
                 type="button"
-                @click="mostrar(avisoSeguranca, 'A alteração de senha poderá ser conectada ao backend.')"
+                :aria-expanded="painelAberto === 'senha'"
+                @click="alternarPainel('senha')"
               >
                 <LockKeyhole :size="16" />
                 <span>Alterar senha</span>
                 <ChevronRight :size="16" class="option-arrow" />
               </button>
 
+              <form v-if="painelAberto === 'senha'" class="security-panel" @submit.prevent="alterarSenha">
+                <div class="field">
+                  <label for="senha-atual">Senha atual</label>
+                  <div class="input-wrapper">
+                    <LockKeyhole :size="16" />
+                    <input id="senha-atual" v-model="alteracaoSenha.atual" type="password" autocomplete="current-password" required />
+                  </div>
+                </div>
+                <div class="field">
+                  <label for="nova-senha">Nova senha</label>
+                  <div class="input-wrapper">
+                    <LockKeyhole :size="16" />
+                    <input id="nova-senha" v-model="alteracaoSenha.nova" type="password" minlength="8" autocomplete="new-password" required />
+                  </div>
+                </div>
+                <div class="field">
+                  <label for="confirmacao-senha">Confirmar nova senha</label>
+                  <div class="input-wrapper">
+                    <LockKeyhole :size="16" />
+                    <input id="confirmacao-senha" v-model="alteracaoSenha.confirmacao" type="password" minlength="8" autocomplete="new-password" required />
+                  </div>
+                </div>
+                <button class="save-button" type="submit" :disabled="processandoSeguranca">
+                  <Save :size="15" />{{ processandoSeguranca ? 'Salvando...' : 'Salvar nova senha' }}
+                </button>
+              </form>
+
               <button
                 class="security-option"
+                :class="{ open: painelAberto === 'privacidade' }"
                 type="button"
-                @click="mostrar(avisoSeguranca, 'As opções de privacidade poderão ser conectadas ao backend.')"
+                :aria-expanded="painelAberto === 'privacidade'"
+                @click="alternarPainel('privacidade')"
               >
                 <Eye :size="16" />
                 <span>Privacidade dos dados</span>
                 <ChevronRight :size="16" class="option-arrow" />
               </button>
 
+              <div v-if="painelAberto === 'privacidade'" class="security-panel">
+                <p class="security-text">
+                  Seus dados ficam guardados apenas no banco da sua organização e não são compartilhados com outras
+                  organizações. Você pode excluir sua conta a qualquer momento, e essa ação não pode ser desfeita.
+                </p>
+
+                <p v-if="administradorDaOrganizacao" class="security-text">
+                  O administrador da organização não pode excluir a própria conta.
+                </p>
+
+                <form v-else class="panel-form" @submit.prevent="excluirConta">
+                  <div class="field">
+                    <label for="senha-exclusao">Confirme sua senha</label>
+                    <div class="input-wrapper">
+                      <LockKeyhole :size="16" />
+                      <input id="senha-exclusao" v-model="senhaExclusao" type="password" autocomplete="current-password" required />
+                    </div>
+                  </div>
+                  <button class="danger-button" type="submit" :disabled="processandoSeguranca">
+                    <Trash2 :size="15" />Excluir minha conta
+                  </button>
+                </form>
+              </div>
+
+              <p v-if="erroSeguranca" class="error-message" role="alert">{{ erroSeguranca }}</p>
               <p v-if="avisoSeguranca" class="security-note" role="status">{{ avisoSeguranca }}</p>
             </section>
           </aside>
@@ -380,6 +513,8 @@ onBeforeUnmount(() => {
 .form-footer { display: flex; align-items: center; gap: 16px; flex-wrap: wrap; margin-top: 22px; }
 .save-button { display: inline-flex; align-items: center; gap: 8px; background: var(--teal); color: #fff; border: 0; font-weight: 700; font-size: .9rem; padding: 13px 28px; border-radius: 999px; cursor: pointer; transition: background .2s; }
 .save-button:hover { background: var(--teal-dark); }
+.save-button:disabled, .danger-button:disabled { background: #9aafc0; border-color: #9aafc0; color: #fff; cursor: not-allowed; }
+.error-message { color: #c0392b; font-size: .85rem; font-weight: 600; }
 .success-message { display: inline-flex; align-items: center; gap: 8px; color: var(--teal-dark); font-size: .85rem; font-weight: 600; }
 
 .right-column { display: flex; flex-direction: column; gap: 20px; }
@@ -398,7 +533,15 @@ onBeforeUnmount(() => {
 .security-option:hover { background: var(--mint); }
 .security-option svg:first-child { color: var(--teal); }
 .security-option span { flex: 1; }
-.option-arrow { color: var(--muted); }
+.option-arrow { color: var(--muted); transition: transform .2s; }
+.security-option.open { background: var(--mint); }
+.security-option.open .option-arrow { transform: rotate(90deg); }
+.security-panel, .panel-form { display: flex; flex-direction: column; gap: 12px; }
+.security-panel { margin: 4px 0 14px; }
+.security-panel .save-button { justify-content: center; padding: 11px 20px; font-size: .85rem; }
+.security-text { font-size: .8rem; color: var(--muted); }
+.danger-button { display: inline-flex; align-items: center; justify-content: center; gap: 8px; background: none; border: 1.5px solid #c0392b; color: #c0392b; font-weight: 700; font-size: .85rem; padding: 11px 20px; border-radius: 999px; cursor: pointer; transition: all .2s; }
+.danger-button:hover { background: #c0392b; color: #fff; }
 .security-note { font-size: .78rem; color: var(--muted); margin-top: 4px; }
 
 @media (max-width: 1000px) {
