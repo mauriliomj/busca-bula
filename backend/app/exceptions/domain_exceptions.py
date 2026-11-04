@@ -89,3 +89,8 @@ class LogoTooLargeError(DomainError):
 class LogoNotFoundError(DomainError):
     status_code = 404
     message = "Logo não encontrada."
+
+
+class CatalogImportAlreadyRunningError(DomainError):
+    status_code = 409
+    message = "Já existe uma sincronização do catálogo em andamento."

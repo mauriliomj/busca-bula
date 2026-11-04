@@ -33,8 +33,10 @@ services:
       PLATFORM_DATABASE_NAME: ${POSTGRES_DB:-busca_bula}
       TENANT_DATABASE_SECRET: ${TENANT_DATABASE_SECRET:-dev-tenant-database-secret}
       JWT_SECRET: ${JWT_SECRET:-dev-jwt-secret}
+      CATALOG_CACHE_DIR: /var/cache/busca-bula/catalog
     volumes:
       - ./backend:/app
+      - catalog_cache:/var/cache/busca-bula
     ports:
       - "${BACKEND_PORT:-8000}:8000"
     depends_on:
@@ -62,3 +64,4 @@ services:
 
 volumes:
   db_data:
+  catalog_cache:

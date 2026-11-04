@@ -4,7 +4,11 @@ from alembic import command
 from alembic.config import Config
 from sqlalchemy.engine import URL
 
-from app.core.database_urls import build_platform_database_url, build_tenant_database_url
+from app.core.database_urls import (
+    build_catalog_writer_url,
+    build_platform_database_url,
+    build_tenant_database_url,
+)
 
 ALEMBIC_CONFIG_PATH = Path(__file__).resolve().parents[2] / "alembic.ini"
 
@@ -21,3 +25,7 @@ def upgrade_platform_database() -> None:
 
 def upgrade_tenant_database(slug: str) -> None:
     command.upgrade(build_alembic_config("tenant", build_tenant_database_url(slug)), "head")
+
+
+def upgrade_catalog_database() -> None:
+    command.upgrade(build_alembic_config("catalog", build_catalog_writer_url()), "head")

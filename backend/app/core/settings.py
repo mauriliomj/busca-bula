@@ -14,6 +14,13 @@ class Settings(BaseSettings):
     platform_database_name: str = "busca_bula"
     tenant_database_prefix: str = "tenant_"
     tenant_database_secret: str = "dev-tenant-database-secret"
+    catalog_database_name: str = "busca_bula_catalog"
+
+    catalog_cache_dir: str = ".cache/catalog"
+    catalog_user_agent: str = "BuscaBula/1.0 (projeto academico de dados abertos)"
+    anvisa_medicines_url: str = "https://dados.anvisa.gov.br/dados/DADOS_ABERTOS_MEDICAMENTOS.csv"
+    anvisa_leaflets_url: str = "https://dados.anvisa.gov.br/dados/CONSULTAS/DOCUMENTOS/TA_CONSULTA_BULA_PRODUTO.CSV"
+    cmed_prices_url: str = "https://dados.anvisa.gov.br/dados/TA_PRECO_MEDICAMENTO.csv"
 
     jwt_secret: str = "dev-jwt-secret"
     jwt_algorithm: str = "HS256"

@@ -5,14 +5,14 @@ from app.core.settings import get_settings
 
 
 class DatabaseAdministrator:
-    def _connect(self) -> psycopg.Connection:
+    def _connect(self, database_name: str | None = None) -> psycopg.Connection:
         settings = get_settings()
         return psycopg.connect(
             host=settings.database_host,
             port=settings.database_port,
             user=settings.database_admin_user,
             password=settings.database_admin_password,
-            dbname=settings.database_maintenance_name,
+            dbname=database_name or settings.database_maintenance_name,
             autocommit=True,
         )
 
@@ -51,6 +51,12 @@ class DatabaseAdministrator:
                 sql.SQL("REVOKE ALL ON DATABASE {} FROM PUBLIC").format(
                     sql.Identifier(database_name)
                 )
+            )
+
+    def create_extension(self, database_name: str, extension_name: str) -> None:
+        with self._connect(database_name) as connection:
+            connection.execute(
+                sql.SQL("CREATE EXTENSION IF NOT EXISTS {}").format(sql.Identifier(extension_name))
             )
 
     def drop_database(self, database_name: str) -> None:

@@ -4,6 +4,7 @@ from app.core.database_migrations import upgrade_platform_database, upgrade_tena
 from app.core.platform_database import open_platform_session
 from app.models.platform.organization import OrganizationStatus
 from app.repositories.organization_repository import OrganizationRepository
+from app.services.catalog_provisioning_service import CatalogProvisioningService
 
 logger = logging.getLogger("busca_bula.migrations")
 
@@ -21,6 +22,8 @@ def list_provisioned_organization_slugs() -> list[str]:
 def migrate_all_databases() -> None:
     upgrade_platform_database()
     logger.info("Banco da plataforma atualizado.")
+    CatalogProvisioningService().ensure_catalog_database()
+    logger.info("Banco do catálogo atualizado.")
     for slug in list_provisioned_organization_slugs():
         upgrade_tenant_database(slug)
         logger.info("Banco da organização %s atualizado.", slug)

@@ -2,17 +2,21 @@ import os
 
 os.environ["PLATFORM_DATABASE_NAME"] = "test_busca_bula_platform"
 os.environ["TENANT_DATABASE_PREFIX"] = "test_tenant_"
+os.environ["CATALOG_DATABASE_NAME"] = "test_busca_bula_catalog"
 
 import pytest
 from fastapi.testclient import TestClient
 from sqlalchemy import text
 
+from app.core.catalog_credentials import build_catalog_reader_role_name, build_catalog_writer_role_name
+from app.core.catalog_database import dispose_catalog_engines, get_catalog_writer_engine
 from app.core.database_administration import DatabaseAdministrator
 from app.core.database_migrations import upgrade_platform_database
 from app.core.platform_database import get_platform_engine, open_platform_session
 from app.core.settings import get_settings
 from app.core.tenant_database import tenant_engine_registry
 from app.main import app
+from app.services.catalog_provisioning_service import CatalogProvisioningService
 from app.services.platform_admin_auth_service import PlatformAdminAuthService
 
 PLATFORM_ADMIN_EMAIL = "admin@buscabula.com.br"
@@ -44,6 +48,30 @@ def platform_database(database_administrator):
     drop_tenant_databases_and_roles(database_administrator)
     get_platform_engine().dispose()
     database_administrator.drop_database(platform_database_name)
+
+
+def drop_catalog_database(administrator: DatabaseAdministrator) -> None:
+    dispose_catalog_engines()
+    administrator.drop_database(get_settings().catalog_database_name)
+    administrator.drop_role(build_catalog_reader_role_name())
+    administrator.drop_role(build_catalog_writer_role_name())
+
+
+@pytest.fixture(scope="session")
+def catalog_database(database_administrator):
+    drop_catalog_database(database_administrator)
+    CatalogProvisioningService(database_administrator).ensure_catalog_database()
+    yield
+    drop_catalog_database(database_administrator)
+
+
+@pytest.fixture
+def clean_catalog(catalog_database):
+    yield
+    with get_catalog_writer_engine().begin() as connection:
+        connection.execute(
+            text("TRUNCATE medicines, leaflets, medicine_presentations, catalog_imports RESTART IDENTITY")
+        )
 
 
 @pytest.fixture(autouse=True)
