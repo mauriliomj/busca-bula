@@ -187,6 +187,7 @@ function excluirLogo() {
 
 <style scoped>
 .branding-editor { display: flex; flex-direction: column; gap: 22px; }
+.branding-editor button, .branding-editor input { font-family: inherit; }
 .editor-block { display: flex; flex-direction: column; gap: 14px; }
 .block-title { display: flex; align-items: center; gap: 8px; font-size: .9rem; font-weight: 700; color: var(--navy); }
 .block-title svg { color: var(--teal); }
@@ -204,12 +205,13 @@ function excluirLogo() {
 .outline-button.danger { border-color: #c0392b; color: #c0392b; }
 .outline-button.danger:hover { background: #c0392b; color: #fff; }
 
-.color-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+.color-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); gap: 16px; }
+.color-field { min-width: 0; }
 .color-field label { display: block; font-size: .8rem; font-weight: 600; color: var(--navy); margin-bottom: 6px; }
-.color-input { display: flex; align-items: center; gap: 10px; border: 1px solid var(--line); border-radius: 10px; padding: 6px 10px; background: #fff; }
+.color-input { min-width: 0; display: flex; align-items: center; gap: 10px; border: 1px solid var(--line); border-radius: 10px; padding: 6px 10px; background: #fff; }
 .color-input:focus-within { border-color: var(--teal); box-shadow: 0 0 0 3px rgba(15, 158, 148, .18); }
 .color-input input[type='color'] { width: 30px; height: 30px; border: 0; padding: 0; background: none; cursor: pointer; flex: none; }
-.color-input input[type='text'] { flex: 1; min-width: 0; border: 0; outline: 0; font-size: .88rem; color: var(--navy); text-transform: lowercase; font-family: inherit; }
+.color-input input[type='text'] { flex: 1; width: 100%; min-width: 0; border: 0; outline: 0; font-size: .88rem; color: var(--navy); text-transform: lowercase; font-family: inherit; }
 
 .brand-preview { border: 1px solid var(--line); border-radius: 12px; padding: 16px 18px; background: #f1f6f9; display: flex; flex-direction: column; align-items: flex-start; gap: 6px; }
 .preview-label { font-size: .7rem; font-weight: 700; text-transform: uppercase; letter-spacing: .05em; color: var(--muted); }
@@ -227,8 +229,4 @@ function excluirLogo() {
 
 .error-message { color: #c0392b; font-size: .85rem; font-weight: 600; }
 .success-message { display: inline-flex; align-items: center; gap: 8px; color: var(--teal-dark); font-size: .85rem; font-weight: 600; }
-
-@media (max-width: 640px) {
-  .color-grid { grid-template-columns: 1fr; }
-}
 </style>
