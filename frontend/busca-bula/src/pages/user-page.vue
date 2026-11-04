@@ -1,5 +1,5 @@
 <script setup>
-import { ref, onBeforeUnmount } from 'vue'
+import { ref, onBeforeUnmount, onMounted } from 'vue'
 import {
   House,
   Search,
@@ -22,12 +22,14 @@ import {
   CheckCircle,
   Eye
 } from 'lucide-vue-next'
+import { PLATFORM_ADMIN_ROLE, currentUserRole, isAuthenticated, logoutUser } from '../services/auth-service'
+import { fetchCurrentUser } from '../services/user-service'
 
 const perfil = ref({
-  nome: 'João Henrique',
+  nome: '',
   idade: '',
   sexo: '',
-  email: 'joaohm123@gmail.com',
+  email: '',
   celular: '',
   endereco: '',
   cidade: '',
@@ -44,7 +46,7 @@ const menuItems = [
   { label: 'Buscar', icon: Search, href: '#' },
   { label: 'Minhas Consultas', icon: FileText, href: '#' },
   { label: 'Meu Perfil', icon: UserRound, href: '#', active: true },
-  { label: 'Sair', icon: LogOut, href: '#' }
+  { label: 'Sair', icon: LogOut, href: '/login', sair: true }
 ]
 
 const foto = ref('')
@@ -60,9 +62,22 @@ function mostrar(alvo, texto) {
 }
 
 function salvarAlteracoes() {
-  // TODO: enviar `perfil.value` para o backend
   mostrar(mensagem, 'Alterações salvas nesta sessão!')
 }
+
+function sair() {
+  logoutUser()
+}
+
+async function carregarPerfil() {
+  if (!isAuthenticated() || currentUserRole() === PLATFORM_ADMIN_ROLE) {
+    window.location.href = '/login'
+    return
+  }
+  perfil.value = await fetchCurrentUser()
+}
+
+onMounted(carregarPerfil)
 
 function alterarFoto() {
   inputFoto.value?.click()
@@ -83,7 +98,6 @@ onBeforeUnmount(() => {
 
 <template>
   <div class="perfil-page">
-    <!-- Header -->
     <header class="header">
       <div class="header-inner">
         <a href="#" class="logo" aria-label="Busca Bula – início">
@@ -114,7 +128,6 @@ onBeforeUnmount(() => {
     </header>
 
     <div class="layout">
-      <!-- Menu lateral -->
       <aside class="sidebar">
         <nav class="menu" aria-label="Menu do usuário">
           <a
@@ -124,6 +137,7 @@ onBeforeUnmount(() => {
             class="menu-item"
             :class="{ active: item.active }"
             :aria-current="item.active ? 'page' : undefined"
+            @click="item.sair && sair()"
           >
             <component :is="item.icon" :size="17" />
             <span>{{ item.label }}</span>
@@ -131,7 +145,6 @@ onBeforeUnmount(() => {
         </nav>
       </aside>
 
-      <!-- Conteúdo principal -->
       <main class="main-content">
         <div class="page-heading">
           <div class="heading-icon"><UserRound :size="27" /></div>
@@ -142,10 +155,8 @@ onBeforeUnmount(() => {
         </div>
 
         <div class="content-grid">
-          <!-- Formulário -->
           <section class="forms-column">
             <form class="profile-form" @submit.prevent="salvarAlteracoes">
-              <!-- Dados pessoais -->
               <div class="form-card">
                 <h2 class="section-title"><UserRound :size="17" />Dados pessoais</h2>
 
@@ -182,7 +193,6 @@ onBeforeUnmount(() => {
                 </div>
               </div>
 
-              <!-- Contato -->
               <div class="form-card">
                 <h2 class="section-title"><Phone :size="17" />Contato</h2>
 
@@ -205,7 +215,6 @@ onBeforeUnmount(() => {
                 </div>
               </div>
 
-              <!-- Endereço -->
               <div class="form-card address-card">
                 <h2 class="section-title"><MapPin :size="17" />Endereço</h2>
 
@@ -250,7 +259,6 @@ onBeforeUnmount(() => {
             </form>
           </section>
 
-          <!-- Coluna direita -->
           <aside class="right-column">
             <section class="user-card">
               <div class="avatar-container">
@@ -330,7 +338,6 @@ onBeforeUnmount(() => {
 .perfil-page button, .perfil-page input, .perfil-page select { font: inherit; }
 .perfil-page :focus-visible { outline: 3px solid var(--teal); outline-offset: 2px; border-radius: 6px; }
 
-/* Header */
 .header { background: #fff; box-shadow: 0 1px 0 var(--line); position: sticky; top: 0; z-index: 10; }
 .header-inner { width: min(1200px, 100% - 48px); margin-inline: auto; height: 70px; display: flex; align-items: center; justify-content: space-between; gap: 24px; }
 .logo { display: flex; align-items: center; gap: 10px; font-weight: 800; font-size: 1.5rem; color: var(--navy); letter-spacing: -.02em; }
@@ -342,7 +349,6 @@ onBeforeUnmount(() => {
 .icon-btn { width: 38px; height: 38px; border-radius: 50%; border: 2px solid var(--navy); background: none; color: var(--navy); display: grid; place-items: center; cursor: pointer; }
 .header-user { display: inline-flex; align-items: center; gap: 8px; background: var(--navy); color: #fff; font-weight: 600; font-size: .85rem; padding: 10px 20px; border-radius: 999px; }
 
-/* Layout */
 .layout { width: min(1200px, 100% - 48px); margin-inline: auto; display: grid; grid-template-columns: 220px 1fr; gap: 28px; padding: 32px 0 48px; align-items: start; }
 .sidebar { background: #fff; border-radius: 16px; padding: 14px; box-shadow: 0 4px 16px rgba(18, 58, 92, .06); }
 .menu { display: flex; flex-direction: column; gap: 4px; }
@@ -376,7 +382,6 @@ onBeforeUnmount(() => {
 .save-button:hover { background: var(--teal-dark); }
 .success-message { display: inline-flex; align-items: center; gap: 8px; color: var(--teal-dark); font-size: .85rem; font-weight: 600; }
 
-/* Coluna direita */
 .right-column { display: flex; flex-direction: column; gap: 20px; }
 .user-card { text-align: center; }
 .avatar-container { position: relative; width: 96px; height: 96px; margin: 0 auto 14px; }
@@ -396,7 +401,6 @@ onBeforeUnmount(() => {
 .option-arrow { color: var(--muted); }
 .security-note { font-size: .78rem; color: var(--muted); margin-top: 4px; }
 
-/* Responsivo */
 @media (max-width: 1000px) {
   .layout { grid-template-columns: 1fr; }
   .menu { flex-direction: row; overflow-x: auto; }

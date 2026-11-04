@@ -6,8 +6,40 @@
     } from 'lucide-vue-next';
 
     import { ref } from 'vue'
+    import { loginUser, registerUser } from '../services/auth-service'
+    import { extractErrorMessage } from '../services/http-client'
+    import { isPlatformContext } from '../services/organization-context'
 
+    const areaDaPlataforma = isPlatformContext()
     const mostrarSenha = ref(false)
+    const enviando = ref(false)
+    const erro = ref(areaDaPlataforma ? 'Acesse o cadastro pelo endereço da sua organização.' : '')
+
+    const formulario = ref({
+        nome: '',
+        idade: '',
+        sexo: '',
+        email: '',
+        celular: '',
+        endereco: '',
+        cidade: '',
+        estado: '',
+        senha: ''
+    })
+
+    async function cadastrar() {
+        erro.value = ''
+        enviando.value = true
+        try {
+            await registerUser(formulario.value)
+            await loginUser(formulario.value.email, formulario.value.senha)
+            window.location.href = '/user'
+        } catch (falha) {
+            erro.value = extractErrorMessage(falha, 'Não foi possível concluir o cadastro. Tente novamente.')
+        } finally {
+            enviando.value = false
+        }
+    }
 </script>
 
 <template>
@@ -29,16 +61,14 @@
                 <img :src="icone" alt="iconeRegister" id="iconeRegister">
             </section>
 
-            <!-- Lado direito: cadastro -->
             <section class="register-form">
                 <h2>Criar conta</h2>
                 <p class="subtitle">
                     Preencha os dados abaixo para começar a usar o Busca Bula.
                 </p>
 
-                <form @submit.prevent>
+                <form @submit.prevent="cadastrar">
 
-                    <!-- Nome completo e idade -->
                     <div class="form-row">
                         <div class="form-group">
                             <label for="nome">Nome completo</label>
@@ -47,6 +77,7 @@
                                 <input
                                     type="text"
                                     id="nome"
+                                    v-model="formulario.nome"
                                     placeholder="Digite seu nome completo"
                                     required
                                 >
@@ -60,6 +91,7 @@
                                 <input
                                     type="number"
                                     id="idade"
+                                    v-model="formulario.idade"
                                     placeholder="Ex.: 25"
                                     min="1"
                                     max="120"
@@ -69,13 +101,12 @@
                         </div>
                     </div>
 
-                    <!-- Sexo -->
                     <div class="form-group">
                         <label for="sexo">Sexo</label>
                         <div class="input-container">
                             <VenusAndMars :size="16" />
-                            <select id="sexo" required>
-                                <option value="" disabled selected>
+                            <select id="sexo" v-model="formulario.sexo" required>
+                                <option value="" disabled>
                                     Selecione seu sexo
                                 </option>
                                 <option value="feminino">Feminino</option>
@@ -86,7 +117,6 @@
                         </div>
                     </div>
 
-                    <!-- E-mail e celular -->
                     <div class="form-row">
                         <div class="form-group">
                             <label for="email">E-mail</label>
@@ -95,6 +125,7 @@
                                 <input
                                     type="email"
                                     id="email"
+                                    v-model="formulario.email"
                                     placeholder="Digite seu e-mail"
                                     required
                                 >
@@ -108,6 +139,7 @@
                                 <input
                                     type="tel"
                                     id="celular"
+                                    v-model="formulario.celular"
                                     placeholder="(11) 91234-5678"
                                     required
                                 >
@@ -115,7 +147,6 @@
                         </div>
                     </div>
 
-                    <!-- Endereço -->
                     <div class="form-group">
                         <label for="endereco">Endereço</label>
                         <div class="input-container">
@@ -123,13 +154,13 @@
                             <input
                                 type="text"
                                 id="endereco"
+                                v-model="formulario.endereco"
                                 placeholder="Digite seu endereço completo"
                                 required
                             >
                         </div>
                     </div>
 
-                    <!-- Cidade e estado -->
                     <div class="form-row">
                         <div class="form-group">
                             <label for="cidade">Cidade</label>
@@ -138,6 +169,7 @@
                                 <input
                                     type="text"
                                     id="cidade"
+                                    v-model="formulario.cidade"
                                     placeholder="Digite sua cidade"
                                     required
                                 >
@@ -148,8 +180,8 @@
                             <label for="estado">Estado</label>
                             <div class="input-container">
                                 <Map :size="16" />
-                                <select id="estado" required>
-                                    <option value="" disabled selected>
+                                <select id="estado" v-model="formulario.estado" required>
+                                    <option value="" disabled>
                                         Selecione seu estado
                                     </option>
                                     <option value="AC">Acre</option>
@@ -184,7 +216,6 @@
                         </div>
                     </div>
 
-                    <!-- Senha -->
                     <div class="form-group">
                         <label for="senha">Senha</label>
                         <div class="input-container">
@@ -192,6 +223,7 @@
                             <input
                                 :type="mostrarSenha ? 'text' : 'password'"
                                 id="senha"
+                                v-model="formulario.senha"
                                 placeholder="Crie uma senha"
                                 minlength="8"
                                 required
@@ -208,9 +240,10 @@
                         </div>
                     </div>
 
-                    <!-- Botão cadastrar -->
-                    <button type="submit" id="btn-entrar">
-                        Cadastrar <span>→</span>
+                    <p v-if="erro" class="mensagem-erro" role="alert">{{ erro }}</p>
+
+                    <button type="submit" id="btn-entrar" :disabled="enviando || areaDaPlataforma">
+                        {{ enviando ? 'Cadastrando...' : 'Cadastrar' }} <span>→</span>
                     </button>
 
                     <p class="login-link">
@@ -257,12 +290,11 @@ main {
     overflow: hidden;
 }
 
-/* Quadrado do register */
 .register-card {
     display: grid;
     grid-template-columns: 1fr 1fr;
     width: 880px;
-    height: 580px;
+    min-height: 580px;
     background-color: white;
     border: 1px solid #E1EAF0;
     border-radius: 9px;
@@ -273,7 +305,6 @@ main {
     margin-bottom: auto;
 }
 
-/* Lado esquerdo */
 .register-info {
     padding: 30px 25px;
     background-color: #F1F6F9;
@@ -307,7 +338,6 @@ main {
     margin: 0 0 10px 50px;
 }
 
-/* Lado direito - cadastro */
 .register-form {
     padding: 22px 30px;
     background-color: #FFFFFF;
@@ -402,7 +432,6 @@ main {
     cursor: pointer;
 }
 
-/* Botão Cadastrar */
 #btn-entrar {
     display: flex;
     align-items: center;
@@ -425,6 +454,18 @@ main {
     background-color: #0B968E;
 }
 
+#btn-entrar:disabled {
+    background-color: #9AAFC0;
+    cursor: not-allowed;
+}
+
+.mensagem-erro {
+    margin: 0 0 8px;
+    text-align: center;
+    color: #D64545;
+    font-size: 10px;
+}
+
 .login-link {
     margin: 14px 0 0;
     text-align: center;
@@ -442,7 +483,6 @@ main {
     text-decoration: underline;
 }
 
-/* Adaptação para telas menores */
 @media (max-width: 650px) {
     main {
         height: auto;

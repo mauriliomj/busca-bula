@@ -78,7 +78,7 @@ function useExample(name) {
           <button class="icon-btn" type="button" aria-label="Opções de acessibilidade">
             <svg width="24" height="24"><use href="#i-access" /></svg>
           </button>
-          <a href="#" class="btn-login">
+          <a href="/login" class="btn-login">
             <svg width="18" height="18"><use href="#i-user" /></svg>Acessar
           </a>
         </div>

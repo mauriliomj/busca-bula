@@ -2,7 +2,56 @@
     import Header from '../components/header.vue'
     import logo2 from '../assets/images/Logo2.png' 
     import icone from '../assets/images/icone.png'
-    import {Mail, LockKeyhole } from 'lucide-vue-next'; 
+    import {Mail, LockKeyhole } from 'lucide-vue-next';
+    import { computed, onMounted, ref } from 'vue'
+    import { currentUserRole, homePathForRole, isAuthenticated, loginUser } from '../services/auth-service'
+    import { extractErrorMessage } from '../services/http-client'
+    import { fetchCurrentOrganization } from '../services/organization-service'
+    import { isPlatformContext } from '../services/organization-context'
+
+    const areaDaPlataforma = isPlatformContext()
+    const email = ref('')
+    const senha = ref('')
+    const enviando = ref(false)
+    const erro = ref('')
+    const organizacao = ref(null)
+    const organizacaoIndisponivel = ref(false)
+
+    const subtitulo = computed(() => {
+        if (areaDaPlataforma) return 'Área administrativa da plataforma Busca Bula.'
+        if (organizacao.value) return `Informe seu e-mail para acessar sua conta ${organizacao.value.nome}.`
+        return 'Informe seu e-mail para acessar sua conta.'
+    })
+
+    async function carregarOrganizacao() {
+        try {
+            organizacao.value = await fetchCurrentOrganization()
+        } catch (falha) {
+            organizacaoIndisponivel.value = true
+            erro.value = extractErrorMessage(falha, 'Não foi possível carregar a organização.')
+        }
+    }
+
+    async function entrar() {
+        erro.value = ''
+        enviando.value = true
+        try {
+            const papel = await loginUser(email.value, senha.value)
+            window.location.href = homePathForRole(papel)
+        } catch (falha) {
+            erro.value = extractErrorMessage(falha, 'Não foi possível entrar. Tente novamente.')
+        } finally {
+            enviando.value = false
+        }
+    }
+
+    onMounted(() => {
+        if (isAuthenticated()) {
+            window.location.href = homePathForRole(currentUserRole())
+            return
+        }
+        if (!areaDaPlataforma) carregarOrganizacao()
+    })
 </script>
 
 <template>
@@ -26,9 +75,9 @@
 
             <section class="login-form">
                 <h2>Entrar</h2>
-                <p class="subtitle">Informe seu e-mail para acessar sua conta.</p>
+                <p class="subtitle">{{ subtitulo }}</p>
 
-                <form>
+                <form @submit.prevent="entrar">
                     <div class="form-group">
                         <label for="email">E-mail</label>
                         <div class="input-container">
@@ -36,7 +85,10 @@
                             <input
                                 type="email"
                                 id="email"
+                                v-model="email"
                                 placeholder="Digite seu e-mail"
+                                autocomplete="email"
+                                required
                             >
                         </div>
                     </div>
@@ -48,14 +100,23 @@
                             <input
                                 type="password"
                                 id="senha"
+                                v-model="senha"
                                 placeholder="Digite sua senha"
+                                autocomplete="current-password"
+                                required
                             >
                         </div>
                     </div>
 
-                    <button type="submit" id="btn-entrar">
-                        Entrar <span>→</span>
+                    <button type="submit" id="btn-entrar" :disabled="enviando || organizacaoIndisponivel">
+                        {{ enviando ? 'Entrando...' : 'Entrar' }} <span>→</span>
                     </button>
+
+                    <p v-if="erro" class="mensagem-erro" role="alert">{{ erro }}</p>
+
+                    <p v-if="!areaDaPlataforma && !organizacaoIndisponivel" class="register-link">
+                        Não tem uma conta? <a href="/register">Cadastre-se</a>
+                    </p>
                 </form>
             </section>
 
@@ -80,7 +141,6 @@
 
 }
 
-/*MAIN*/
 
 main {
     height: calc(100vh - 50px);
@@ -92,7 +152,6 @@ main {
     overflow: hidden;
 }
 
-/* Quadrado do login */
 .login-card {
     display: grid;
     grid-template-columns: 1fr 1fr;
@@ -106,7 +165,6 @@ main {
     font-family: Arial, Helvetica, sans-serif;
 }
 
-/* Lado esquerdo */
 .login-info {
     padding: 30px 25px;
     background-color: #F1F6F9;
@@ -137,7 +195,6 @@ main {
     margin: 0;
 }
 
-/* Lado direito */
 
 icon-placeholder{
     color: rgb(70, 66, 66);
@@ -197,7 +254,6 @@ icon-placeholder{
     color: #9AAFC0;
 }
 
-/* Botão Entrar */
 #btn-entrar {
     display: flex;
     align-items: center;
@@ -220,7 +276,35 @@ icon-placeholder{
     background-color: #0B968E;
 }
 
-/* Adaptação para telas menores */
+#btn-entrar:disabled {
+    background-color: #9AAFC0;
+    cursor: not-allowed;
+}
+
+.mensagem-erro {
+    margin: 14px 0 0;
+    text-align: center;
+    color: #D64545;
+    font-size: 12px;
+}
+
+.register-link {
+    margin: 16px 0 0;
+    text-align: center;
+    color: #174563;
+    font-size: 12px;
+}
+
+.register-link a {
+    color: #0DA99F;
+    text-decoration: none;
+    font-weight: 600;
+}
+
+.register-link a:hover {
+    text-decoration: underline;
+}
+
 @media (max-width: 650px) {
     main {
         padding: 35px 15px;
