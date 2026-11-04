@@ -1,7 +1,18 @@
 <script setup>
 import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
-import { CircleAlert, CircleCheck, Database, FileText, LoaderCircle, Pill, RefreshCw, Tags } from 'lucide-vue-next'
-import { fetchCatalogSummary, startCatalogImport } from '../services/catalog-service'
+import {
+  BookOpen,
+  CircleAlert,
+  CircleCheck,
+  Database,
+  FileText,
+  FileUp,
+  LoaderCircle,
+  Pill,
+  RefreshCw,
+  Tags
+} from 'lucide-vue-next'
+import { fetchCatalogSummary, startCatalogImport, uploadLeafletPdf } from '../services/catalog-service'
 import { extractErrorMessage } from '../services/http-client'
 
 const INTERVALO_DE_ATUALIZACAO = 5000
@@ -9,7 +20,8 @@ const INTERVALO_DE_ATUALIZACAO = 5000
 const FONTES = {
   medicines: { nome: 'Catálogo de medicamentos', origem: 'ANVISA – dados abertos' },
   leaflets: { nome: 'Índice de bulas', origem: 'ANVISA – Bulário Eletrônico' },
-  prices: { nome: 'Tabela de preços', origem: 'CMED' }
+  prices: { nome: 'Tabela de preços', origem: 'CMED' },
+  leaflet_texts: { nome: 'Textos das bulas', origem: 'ChatBulário (CC BY 4.0)' }
 }
 
 const SITUACOES = {
@@ -22,6 +34,12 @@ const resumo = ref(null)
 const carregando = ref(true)
 const iniciando = ref(false)
 const erro = ref('')
+const registroDaBula = ref('')
+const arquivoDaBula = ref(null)
+const inputDaBula = ref(null)
+const enviandoBula = ref(false)
+const resultadoDoEnvio = ref('')
+const erroDoEnvio = ref('')
 let temporizador = null
 
 const formatadorDeNumero = new Intl.NumberFormat('pt-BR')
@@ -44,6 +62,12 @@ const indicadores = computed(() => {
       icone: FileText
     },
     {
+      rotulo: 'Bulas com texto',
+      valor: resumo.value.totalDeTextosDeBula,
+      detalhe: `${formatarNumero(resumo.value.textosDesatualizados)} com versão mais recente na ANVISA`,
+      icone: BookOpen
+    },
+    {
       rotulo: 'Apresentações com preço',
       valor: resumo.value.totalDeApresentacoes,
       detalhe: 'Preço máximo ao consumidor (CMED)',
@@ -60,6 +84,12 @@ const medidores = computed(() => {
       rotulo: 'Ativos com bula',
       percentual: cobertura.percentualComBula,
       quantidade: cobertura.ativosComBula,
+      total: medicamentosAtivos
+    },
+    {
+      rotulo: 'Ativos com texto de bula',
+      percentual: cobertura.percentualComTexto,
+      quantidade: cobertura.ativosComTexto,
       total: medicamentosAtivos
     },
     {
@@ -123,6 +153,36 @@ async function sincronizar() {
   }
 }
 
+function selecionarArquivoDaBula(evento) {
+  arquivoDaBula.value = evento.target.files[0] ?? null
+}
+
+async function enviarBula() {
+  erroDoEnvio.value = ''
+  resultadoDoEnvio.value = ''
+  if (!/^\d{9}$/.test(registroDaBula.value)) {
+    erroDoEnvio.value = 'Informe o número de registro com 9 dígitos.'
+    return
+  }
+  if (!arquivoDaBula.value) {
+    erroDoEnvio.value = 'Escolha o PDF da bula do paciente.'
+    return
+  }
+  enviandoBula.value = true
+  try {
+    const resultado = await uploadLeafletPdf(registroDaBula.value, arquivoDaBula.value)
+    resultadoDoEnvio.value = `Bula de ${resultado.nome} atualizada com ${resultado.secoes.length} de 9 seções.`
+    registroDaBula.value = ''
+    arquivoDaBula.value = null
+    if (inputDaBula.value) inputDaBula.value.value = ''
+    await carregarResumo()
+  } catch (falha) {
+    erroDoEnvio.value = extractErrorMessage(falha, 'Não foi possível processar o PDF da bula.')
+  } finally {
+    enviandoBula.value = false
+  }
+}
+
 onMounted(carregarResumo)
 onBeforeUnmount(() => clearTimeout(temporizador))
 </script>
@@ -181,6 +241,44 @@ onBeforeUnmount(() => clearTimeout(temporizador))
         </div>
       </section>
 
+      <section class="panel-card" aria-labelledby="titulo-envio-bula">
+        <h3 id="titulo-envio-bula" class="card-title"><FileUp :size="16" />Atualizar bula com PDF</h3>
+        <p class="card-text">
+          Baixe a bula do paciente no
+          <a href="https://consultas.anvisa.gov.br/#/bulario/" target="_blank" rel="noopener">Bulário Eletrônico</a>
+          pelo seu navegador e envie aqui. O texto é separado nas 9 seções da bula do paciente e substitui o texto atual
+          desse registro.
+        </p>
+        <form class="upload-form" @submit.prevent="enviarBula">
+          <label class="upload-field">
+            <span>Número de registro</span>
+            <input v-model="registroDaBula" type="text" inputmode="numeric" maxlength="9" placeholder="Ex.: 186200018" />
+          </label>
+          <div class="upload-field">
+            <span>PDF da bula do paciente</span>
+            <div class="file-picker">
+              <button class="outline-button" type="button" @click="inputDaBula?.click()">
+                <FileText :size="14" />Escolher PDF
+              </button>
+              <span class="file-name">{{ arquivoDaBula?.name || 'Nenhum arquivo escolhido' }}</span>
+            </div>
+            <input
+              ref="inputDaBula"
+              class="hidden-input"
+              type="file"
+              accept="application/pdf"
+              aria-label="PDF da bula do paciente"
+              @change="selecionarArquivoDaBula"
+            />
+          </div>
+          <button class="sync-button" type="submit" :disabled="enviandoBula">
+            <FileUp :size="15" />{{ enviandoBula ? 'Processando...' : 'Enviar PDF' }}
+          </button>
+        </form>
+        <p v-if="erroDoEnvio" class="error-message" role="alert">{{ erroDoEnvio }}</p>
+        <p v-if="resultadoDoEnvio" class="success-message" role="status"><CircleCheck :size="15" />{{ resultadoDoEnvio }}</p>
+      </section>
+
       <section class="panel-card" aria-labelledby="titulo-importacoes">
         <h3 id="titulo-importacoes" class="card-title"><RefreshCw :size="16" />Última sincronização por fonte</h3>
         <table class="imports-table">
@@ -233,7 +331,7 @@ onBeforeUnmount(() => clearTimeout(temporizador))
 .sync-button:hover { background: var(--teal-dark); }
 .sync-button:disabled { background: #9aafc0; cursor: not-allowed; }
 
-.kpi-row { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; }
+.kpi-row { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 16px; }
 .stat-tile, .panel-card { background: #fff; border-radius: 16px; padding: 20px 22px; box-shadow: 0 4px 16px rgba(18, 58, 92, .06); }
 .stat-label { display: flex; align-items: center; gap: 8px; font-size: .8rem; font-weight: 600; color: var(--muted); }
 .stat-label svg { color: var(--teal); }
@@ -243,7 +341,7 @@ onBeforeUnmount(() => clearTimeout(temporizador))
 .card-title { display: flex; align-items: center; gap: 10px; font-size: .95rem; font-weight: 700; color: var(--navy); margin-bottom: 18px; }
 .card-title svg { color: var(--teal); }
 
-.meters { display: grid; grid-template-columns: 1fr 1fr; gap: 28px; }
+.meters { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 28px; }
 .meter-header { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 8px; }
 .meter-label { font-size: .85rem; font-weight: 600; color: var(--navy); }
 .meter-value { font-size: 1.1rem; font-weight: 800; color: var(--navy); }
@@ -264,6 +362,19 @@ onBeforeUnmount(() => clearTimeout(temporizador))
 .status-badge.running { background: #fff4e0; color: #9a6100; }
 .import-error { display: block; margin-top: 6px; font-size: .75rem; color: #c0392b; max-width: 280px; word-break: break-word; }
 
+.card-text { font-size: .85rem; color: var(--muted); margin: -6px 0 16px; }
+.card-text a { color: var(--teal); font-weight: 600; }
+.upload-form { display: flex; align-items: flex-end; gap: 16px; flex-wrap: wrap; }
+.upload-field { display: flex; flex-direction: column; gap: 6px; font-size: .78rem; font-weight: 600; color: var(--navy); min-width: 0; }
+.upload-field input[type='text'] { border: 1px solid var(--line); border-radius: 10px; padding: 10px 12px; font-size: .88rem; color: var(--navy); width: 180px; font-family: inherit; }
+.upload-field input[type='text']:focus { outline: none; border-color: var(--teal); box-shadow: 0 0 0 3px rgba(15, 158, 148, .18); }
+.file-picker { display: flex; align-items: center; gap: 10px; min-height: 41px; min-width: 0; }
+.file-name { font-size: .8rem; font-weight: 500; color: var(--muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 260px; }
+.outline-button { display: inline-flex; align-items: center; gap: 6px; background: none; border: 1.5px solid var(--teal); color: var(--teal); font-weight: 600; font-size: .8rem; padding: 8px 16px; border-radius: 999px; cursor: pointer; transition: all .2s; white-space: nowrap; }
+.outline-button:hover { background: var(--teal); color: #fff; }
+.hidden-input { display: none; }
+.success-message { display: inline-flex; align-items: center; gap: 8px; margin-top: 12px; color: var(--teal-dark); font-size: .85rem; font-weight: 600; }
+.panel-card .error-message { margin-top: 12px; }
 .empty-state { font-size: .88rem; color: var(--muted); }
 .error-message { color: #c0392b; font-size: .85rem; font-weight: 600; }
 .spinning { animation: spin 1s linear infinite; }
@@ -271,6 +382,7 @@ onBeforeUnmount(() => clearTimeout(temporizador))
 
 @media (max-width: 900px) {
   .kpi-row, .meters { grid-template-columns: 1fr; }
+  .upload-field input[type='text'] { width: 100%; }
   .imports-table thead { display: none; }
   .imports-table tr { display: grid; gap: 4px; padding: 10px 0; border-bottom: 1px solid var(--line); }
   .imports-table td { padding: 0; border: 0; }

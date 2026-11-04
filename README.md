@@ -107,6 +107,7 @@ O catálogo junta três fontes públicas em um banco próprio (`busca_bula_catal
 | Medicamentos registrados (ANVISA) | `DADOS_ABERTOS_MEDICAMENTOS.csv` | `medicines`: um registro por número de registro |
 | Índice de bulas (Bulário Eletrônico) | `TA_CONSULTA_BULA_PRODUTO.CSV` | `leaflets`: bula do paciente de cada registro |
 | Preços CMED | `TA_PRECO_MEDICAMENTO.csv` | `medicine_presentations`: apresentações com EAN e preços por alíquota de ICMS |
+| Textos das bulas do paciente ([ChatBulário](https://huggingface.co/datasets/walmeidadf/ChatBulario), CC BY 4.0) | `data/*.parquet` | `leaflet_documents` e `leaflet_sections`: texto das 9 seções da bula do paciente |
 
 As três tabelas se ligam pelo número de registro de 9 dígitos (na tabela CMED, os 9 primeiros dígitos do registro da apresentação).
 
@@ -118,6 +119,17 @@ docker compose exec backend python -m app.commands.import_catalog --source price
 ```
 
 Os arquivos baixados ficam em cache no volume `catalog_cache`, e o download só se repete quando a ANVISA publica uma versão nova (`If-Modified-Since`). A primeira sincronização baixa cerca de 80 MB.
+
+### Bulas: origem do texto
+
+O Bulário Eletrônico (`consultas.anvisa.gov.br`) é protegido por um desafio Cloudflare Turnstile que bloqueia navegadores automatizados. O Busca Bula não contorna essa proteção. O texto das bulas vem de duas fontes:
+
+1. **ChatBulário** ([dataset](https://huggingface.co/datasets/walmeidadf/ChatBulario) de walmeidadf, licença [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/)): cerca de 7.900 bulas do paciente já separadas nas 9 seções da RDC 47/2009, importadas com o restante do catálogo. A atribuição aparece junto do texto em cada bula.
+2. **Envio de PDF** em `/org#catalogo`: o administrador da plataforma baixa a bula do paciente no Bulário pelo próprio navegador e envia o PDF. O texto é extraído com `pdfplumber`, separado nas 9 seções e substitui o texto do dataset para aquele registro. Uma nova importação do dataset não sobrescreve bulas enviadas em PDF.
+
+Quando o expediente da bula guardada é diferente do expediente atual no índice oficial da ANVISA, a bula aparece com o aviso de que existe uma versão mais recente.
+
+Tabelas da bula original (por exemplo, dose por faixa de peso) perdem a estrutura na extração de texto e aparecem como uma linha por célula.
 
 ## Busca de medicamentos
 

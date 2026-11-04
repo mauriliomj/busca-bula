@@ -50,6 +50,22 @@ export async function fetchMedicine(registro) {
       precosMaximos: item.consumer_prices,
     })),
     aliquotasDisponiveis: data.consumer_price_tax_rates,
+    textoDaBulaDisponivel: data.leaflet_text_available,
+  }
+}
+
+export async function fetchMedicineLeaflet(registro) {
+  const { data } = await httpClient.get(`/medicines/${registro}/leaflet`)
+  return {
+    origem: data.source,
+    atribuicao: data.attribution ? { texto: data.attribution.text, url: data.attribution.url } : null,
+    desatualizada: data.is_outdated,
+    publicadaEm: data.published_at,
+    secoes: data.sections.map((section) => ({
+      numero: section.number,
+      titulo: section.title,
+      conteudo: section.content,
+    })),
   }
 }
 
